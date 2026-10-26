@@ -4,7 +4,9 @@
  * the one its manifest records. Before installing or updating, agent-kit writes in its
  * options what the issue flow needs, if the repo has the flow: the auto mode is told that
  * the flow's writes are normal, the flow's base branch becomes `integrationBranch`, and on
- * macOS `weakerNetworkIsolation` lets `gh` work inside the sandbox.
+ * macOS `weakerNetworkIsolation` lets `gh` work inside the sandbox (the guard's own default
+ * is false, so false counts as missing; the step can be unticked). When the flow is
+ * installed in the same run, the guard gets those options in that run too.
  */
 import { type Output, warn } from "../output.js";
 import { type Check, type Context, FLOW_CONFIG, type PieceStatus, type Step } from "../piece.js";
@@ -61,7 +63,7 @@ export function guardOptions(root: string, platform: string): { options: Record<
     options.integrationBranch = baseBranch;
     changes.push(`${CONFIG}: integrationBranch ${baseBranch}`);
   }
-  if (platform === "darwin" && options[WEAKER_NETWORK] === undefined) {
+  if (platform === "darwin" && options[WEAKER_NETWORK] !== true) {
     options[WEAKER_NETWORK] = true;
     changes.push(`${CONFIG}: ${WEAKER_NETWORK} true, so gh works inside the macOS sandbox`);
   }
@@ -81,6 +83,19 @@ function install(context: Context, version: string | null): boolean {
   if (runNpx(context.root, [guardSpec(version), "install", "--yes"])) return true;
   failed(context.out, version);
   return false;
+}
+
+/**
+ * Writes the flow's options and reinstalls the guard at its version, if they are missing
+ * by now (the flow may have been installed earlier in this run).
+ * @param context - Where it runs.
+ * @param version - The guard's version, or null.
+ * @returns Whether it worked, or true if nothing was missing.
+ */
+function addOptions(context: Context, version: string | null): boolean {
+  if (guardOptions(context.root, process.platform).changes.length > 0) return install(context, version);
+  context.out.stdout("  its options already have what the issue flow needs\n");
+  return true;
 }
 
 /**
@@ -110,29 +125,30 @@ function installedVersion(root: string): string | null | undefined {
  * @param latest - The latest tag, or null.
  * @returns The step, or null.
  */
-function stepFor(root: string, installed: string | null | undefined, latest: string | null): Step | null {
+function stepFor(root: string, installed: string | null | undefined, latest: string | null, flowComing: boolean): Step | null {
   if (installed === undefined)
     return { piece: NAME, checked: true, label: `claude-repo-guard ${latest ?? "(main)"}: auto mode with the sandbox, and a doc of what it protects`, run: (context) => install(context, latest) };
   if (latest !== null && (installed === null || compareVersions(latest, installed) > 0))
     return { piece: NAME, checked: true, label: `claude-repo-guard ${installed ?? "?"} → ${latest}`, run: (context) => install(context, latest) };
-  if (guardOptions(root, process.platform).changes.length > 0)
-    return { piece: NAME, checked: true, label: "claude-repo-guard: what the issue flow needs in its options", run: (context) => install(context, installed) };
+  if (flowComing || guardOptions(root, process.platform).changes.length > 0)
+    return { piece: NAME, checked: true, label: "claude-repo-guard: what the issue flow needs in its options", run: (context) => addOptions(context, installed) };
   return null;
 }
 
 /**
  * What the repo has of claude-repo-guard, and the step it needs.
  * @param root - The repo.
+ * @param flowComing - Whether an earlier step of this run installs the issue flow.
  * @returns The piece's status.
- * @example guardStatus(root).state // "not installed"
+ * @example guardStatus(root, false).state // "not installed"
  */
-export function guardStatus(root: string): PieceStatus {
+export function guardStatus(root: string, flowComing: boolean): PieceStatus {
   const installed = installedVersion(root);
   const latest = latestTag(REPO);
   const known = latest === null ? " (GitHub has no release tag)" : "";
   const state = installed === undefined ? `not installed${known}` : latest !== null && (installed === null || compareVersions(latest, installed) > 0) ? `${installed ?? "unknown version"}, ${latest} available` : `${installed ?? "unknown version"}${known}`;
-  const step = stepFor(root, installed, latest);
-  return { name: NAME, summary: "guardrails: auto mode with the sandbox, writes only inside the worktree", state, steps: step === null ? [] : [step] };
+  const step = stepFor(root, installed, latest, flowComing);
+  return { name: NAME, summary: "guardrails: auto mode with the sandbox, writes only inside the worktree", installed: installed !== undefined, state, steps: step === null ? [] : [step] };
 }
 
 /**

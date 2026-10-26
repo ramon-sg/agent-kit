@@ -1,15 +1,53 @@
 /**
  * @file What agent-kit reads of the files of `skills-manager`: which skills of a catalog
- * the lock has and at which tag, the catalog's source in the manifest, and which
- * `skills-manager` to run (the one the repo pins, or the latest 1.x).
+ * the lock has and at which tag (the lock is where the manifest's `paths.lock` says), the
+ * catalog's source in the manifest, which `skills-manager` to run (the one the repo pins,
+ * or the latest 1.x), and updating skills one by one, because `skills-manager update`
+ * takes a single name.
  */
 import { dependencyVersion, isObject, readJson, writeJson } from "./repo.js";
 import { SKILLS_LOCK, SKILLS_MANAGER, SKILLS_MANIFEST } from "./piece.js";
+import { runNpx } from "./tools.js";
 
 /** A skill in the lock: its name and the tag it is at. */
 export interface LockedSkill {
   name: string;
   tag: string | null;
+}
+
+/**
+ * Where the repo's skills lock is: the manifest's `paths.lock`, or the default.
+ * @param root - The repo.
+ * @returns The path, relative to the repo.
+ * @example lockPath(root) // ".agents/skills.lock.json"
+ */
+export function lockPath(root: string): string {
+  const paths = readJson(root, SKILLS_MANIFEST)?.paths;
+  return isObject(paths) && typeof paths.lock === "string" && paths.lock !== "" ? paths.lock : SKILLS_LOCK;
+}
+
+/**
+ * Every skill in the repo's lock, by name.
+ * @param root - The repo.
+ * @returns The lock's entries.
+ * @example Object.keys(lockedSkills(root)) // ["close-pr", "code-audit"]
+ */
+export function lockedSkills(root: string): Record<string, unknown> {
+  const lock = readJson(root, lockPath(root));
+  return isObject(lock?.skills) ? lock.skills : {};
+}
+
+/**
+ * Runs `skills-manager update <name>` for each skill, stopping at the first that fails.
+ * @param root - The repo.
+ * @param names - The skills.
+ * @returns The command that failed, to retry it, or null if every one worked.
+ * @example updateSkills(root, ["close-pr", "pr-review-comments"]) // null
+ */
+export function updateSkills(root: string, names: string[]): string | null {
+  const spec = skillsManagerSpec(root);
+  const failed = names.find((name) => !runNpx(root, [spec, "update", name]));
+  return failed === undefined ? null : `npx ${spec} update ${failed}`;
 }
 
 /**
@@ -20,8 +58,7 @@ export interface LockedSkill {
  * @example catalogSkills(root, "ramon-sg/issue-flow") // [{ name: "close-pr", tag: "v0.2.0" }]
  */
 export function catalogSkills(root: string, catalog: string): LockedSkill[] {
-  const lock = readJson(root, SKILLS_LOCK);
-  const skills = isObject(lock?.skills) ? lock.skills : {};
+  const skills = lockedSkills(root);
   return Object.entries(skills)
     .filter(([, entry]) => isObject(entry) && entry.source === `catalog:${catalog}`)
     .map(([name, entry]) => ({ name, tag: isObject(entry) && typeof entry.tag === "string" ? entry.tag : null }));

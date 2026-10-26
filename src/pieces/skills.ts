@@ -9,7 +9,7 @@
 import { warn } from "../output.js";
 import { type Check, type Context, FLOW_CATALOG, GENERAL_CATALOGS, type PieceStatus, SKILLS_MANIFEST, type Step } from "../piece.js";
 import { readJson } from "../repo.js";
-import { catalogSkills, manifestCatalogs, pinCatalog, skillsManagerSpec } from "../skills-files.js";
+import { catalogSkills, lockedSkills, manifestCatalogs, pinCatalog, skillsManagerSpec, updateSkills } from "../skills-files.js";
 import { captureNpx, compareVersions, latestTag, runNpx } from "../tools.js";
 import { flowVersion } from "./issue-flow.js";
 
@@ -71,16 +71,18 @@ function pick(context: Context): boolean {
 }
 
 /**
- * The step that moves a general catalog's skills to its latest tag, if they are behind.
+ * The step that moves a general catalog's skills to its latest tag, if they are behind. A
+ * catalog that follows a branch has no tag to move to, so it gets no step.
  * @param root - The repo.
  * @param catalog - The catalog.
  * @param ref - The ref the manifest pins it to, or null.
  * @returns The step, or null.
  */
 function updateStep(root: string, catalog: string, ref: string | null): Step | null {
+  if (ref !== null && !RELEASE_TAG.test(ref)) return null;
   const latest = latestTag(catalog);
   if (latest === null) return null;
-  const behind = catalogSkills(root, catalog).filter((skill) => skill.tag === null || compareVersions(latest, skill.tag.replace(/^v/, "")) > 0);
+  const behind = catalogSkills(root, catalog).filter((skill) => skill.tag !== null && RELEASE_TAG.test(skill.tag) && compareVersions(latest, skill.tag.replace(/^v/, "")) > 0);
   if (behind.length === 0) return null;
   const from = [...new Set(behind.map((skill) => skill.tag ?? "?"))].join(", ");
   return {
@@ -88,17 +90,18 @@ function updateStep(root: string, catalog: string, ref: string | null): Step | n
     checked: true,
     label: `${catalog}: ${behind.map((skill) => skill.name).join(", ")} ${from} → v${latest}`,
     run: (context) => {
-      if (ref !== null && RELEASE_TAG.test(ref)) pinCatalog(context.root, catalog, `v${latest}`);
-      const args = [skillsManagerSpec(context.root), "update", ...behind.map((skill) => skill.name)];
-      if (runNpx(context.root, args)) return true;
-      warn(context.out, `skills-manager did not update ${catalog}; run 'npx ${args.join(" ")}'.`);
+      if (ref !== null) pinCatalog(context.root, catalog, `v${latest}`);
+      const failed = updateSkills(context.root, behind.map((skill) => skill.name));
+      if (failed === null) return true;
+      warn(context.out, `skills-manager did not update ${catalog}; run '${failed}' and then agent-kit again.`);
       return false;
     },
   };
 }
 
 /**
- * The skills the catalogs have and the repo does not take, as `skills-manager` lists them.
+ * The skills the catalogs have and the repo does not take, as `skills-manager` lists them,
+ * without those already in the lock (it lists the ones that came through `requires`).
  * @param root - The repo.
  * @returns Their names, or null if `skills-manager` could not tell.
  */
@@ -110,7 +113,9 @@ function newSkills(root: string): string[] | null {
   } catch {
     return null;
   }
-  return Array.isArray(found) ? found.map((candidate: { name?: unknown }) => String(candidate.name)) : null;
+  if (!Array.isArray(found)) return null;
+  const locked = lockedSkills(root);
+  return found.map((candidate: { name?: unknown }) => String(candidate.name)).filter((name) => locked[name] === undefined);
 }
 
 /**
@@ -123,7 +128,7 @@ export function skillsStatus(root: string): PieceStatus {
   const summary = "skills: the flow's, planning, code and test audits";
   if (readJson(root, SKILLS_MANIFEST) === null) {
     const label = `skills: pick them from ${[FLOW_CATALOG, ...GENERAL_CATALOGS].join(" and ")} (without a terminal, the flow's and code-audit)`;
-    return { name: NAME, summary, state: "not installed", steps: [{ piece: NAME, checked: true, label, run: pick }] };
+    return { name: NAME, summary, installed: false, state: "not installed", steps: [{ piece: NAME, checked: true, label, run: pick }] };
   }
   const general = manifestCatalogs(root).filter((source) => source.catalog !== FLOW_CATALOG);
   const steps = general.flatMap((source) => updateStep(root, source.catalog, source.ref) ?? []);
@@ -131,7 +136,7 @@ export function skillsStatus(root: string): PieceStatus {
   if (fresh !== null && fresh.length > 0) steps.push({ piece: NAME, checked: false, label: `skills: ${fresh.length} more to pick (${fresh.join(", ")})`, run: pick });
   const count = manifestCatalogs(root).reduce((total, source) => total + catalogSkills(root, source.catalog).length, 0);
   const behind = steps.filter((step) => step.checked).length;
-  return { name: NAME, summary, state: `${count} installed${behind > 0 ? ", some behind" : ""}`, steps };
+  return { name: NAME, summary, installed: true, state: `${count} installed${behind > 0 ? ", some behind" : ""}`, steps };
 }
 
 /**

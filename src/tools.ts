@@ -2,12 +2,16 @@
  * @file How agent-kit reaches the other tools and their releases: `npx` to run them (always
  * by their scoped name or GitHub spec, because the unscoped names on npm belong to other
  * people), `npm view` for the latest version on npm, and `git ls-remote` for the latest
- * `vX.Y.Z` tag on GitHub. A lookup that fails gives null: the piece is shown, not offered.
+ * `vX.Y.Z` tag on GitHub. A lookup that fails, or takes over 20 seconds, gives null: the
+ * piece is shown, not offered. git never asks for credentials here.
  */
 import { spawnSync } from "node:child_process";
 
 /** A release version. */
 const VERSION = /^(\d+)\.(\d+)\.(\d+)$/;
+
+/** How long a lookup of the latest version may take before it counts as unknown. */
+const LOOKUP_TIMEOUT_MS = 20_000;
 
 /** A release tag in `git ls-remote --tags --refs` output. */
 const TAG_REF = /refs\/tags\/v(\d+\.\d+\.\d+)$/;
@@ -69,7 +73,7 @@ export function captureNpx(root: string, args: string[]): { out: string; status:
  * @example npmLatest("@ramon-sg/claude-cloud") // "1.0.0"
  */
 export function npmLatest(name: string): string | null {
-  const result = spawnSync("npm", ["view", name, "version"], { encoding: "utf8" });
+  const result = spawnSync("npm", ["view", name, "version", "--fetch-retries=0"], { encoding: "utf8", timeout: LOOKUP_TIMEOUT_MS });
   const version = result.status === 0 ? result.stdout.trim() : "";
   return isRelease(version) ? version : null;
 }
@@ -81,7 +85,7 @@ export function npmLatest(name: string): string | null {
  * @example latestTag("ramon-sg/agent-skills") // "0.1.0"
  */
 export function latestTag(repo: string): string | null {
-  const result = spawnSync("git", ["ls-remote", "--tags", "--refs", `https://github.com/${repo}.git`], { encoding: "utf8" });
+  const result = spawnSync("git", ["ls-remote", "--tags", "--refs", `https://github.com/${repo}.git`], { encoding: "utf8", timeout: LOOKUP_TIMEOUT_MS, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
   if (result.status !== 0) return null;
   const versions = result.stdout.split("\n").flatMap((line) => TAG_REF.exec(line.trim())?.slice(1, 2) ?? []);
   return versions.sort(compareVersions).at(-1) ?? null;

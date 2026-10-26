@@ -24,11 +24,14 @@ export interface SyncOptions {
   skip: string[];
 }
 
+/** What a piece's status gets: the repo, and the statuses of the pieces before it. */
+type StatusOf = (root: string, before: PieceStatus[]) => PieceStatus;
+
 /** Every piece, in the order its steps run. */
-const PIECES: { name: string; status: (root: string) => PieceStatus }[] = [
+const PIECES: { name: string; status: StatusOf }[] = [
   { name: FLOW, status: issueFlowStatus },
   { name: CLOUD, status: cloudStatus },
-  { name: GUARD, status: guardStatus },
+  { name: GUARD, status: (root, before) => guardStatus(root, before.some((status) => status.name === FLOW && !status.installed && status.steps.length > 0)) },
   { name: SKILLS, status: skillsStatus },
 ];
 
@@ -83,7 +86,8 @@ export async function sync(options: SyncOptions, out: Output): Promise<number> {
   if (unknown !== undefined) throw new UsageError(`unknown piece ${unknown}; there are ${pieceNames().join(", ")}.`);
   if (options.yes && options.dryRun) throw new UsageError("use --yes or --dry-run, not both.");
   const root = mainCheckout(options.cwd, "agent-kit");
-  const statuses = PIECES.filter((piece) => !options.skip.includes(piece.name)).map((piece) => piece.status(root));
+  const statuses: PieceStatus[] = [];
+  for (const piece of PIECES.filter((item) => !options.skip.includes(item.name))) statuses.push(piece.status(root, statuses));
   printStatus(statuses, out);
   const steps = statuses.flatMap((status) => status.steps);
   if (steps.length === 0) {

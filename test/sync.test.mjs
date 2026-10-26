@@ -71,10 +71,14 @@ test("--yes updates each piece behind: the flow and its skills, claude-cloud's p
   assert.equal(r.status, 0, r.err);
   assert.deepEqual(repo.calls().filter((args) => !args.includes("--candidates")), [
     ["@ramon-sg/issue-flow@0.2.0", "upgrade"],
-    ["@ramon-sg/skills-manager@1.1.0", "update", "close-pr", "pr-review-comments"],
+    ["@ramon-sg/skills-manager@1.1.0", "update", "close-pr"],
+    ["@ramon-sg/skills-manager@1.1.0", "update", "pr-review-comments"],
     ["github:ramon-sg/claude-repo-guard#v0.2.0", "install", "--yes"],
-    ["@ramon-sg/skills-manager@1.1.0", "update", "code-audit", "test-audit"],
+    ["@ramon-sg/skills-manager@1.1.0", "update", "code-audit"],
+    ["@ramon-sg/skills-manager@1.1.0", "update", "test-audit"],
   ]);
+  assert.deepEqual(Object.values(repo.read(".agents/skills.lock.json").skills).map((skill) => skill.tag), ["v0.2.0", "v0.2.0", "v0.2.0", "v0.2.0"]);
+  assert.equal(repo.cli(["doctor"]).status, 0);
   assert.equal(repo.read(".claude/cloud.json").version, "1.1.0");
   assert.deepEqual(repo.read(".agents/skills.json").sources.map((source) => source.ref), ["v0.2.0", undefined]);
   assert.match(r.out, /issue-flow +0\.1\.0, 0\.2\.0 available/);
@@ -91,7 +95,7 @@ test("when only the flow's skills are off the CLI's tag, it moves them alone", (
 
   assert.equal(r.status, 0, r.err);
   assert.match(r.out, /issue-flow's skills → v0\.2\.0/);
-  assert.deepEqual(repo.calls().at(-1), ["@ramon-sg/skills-manager@1.1.0", "update", "close-pr", "pr-review-comments"]);
+  assert.deepEqual(repo.calls().slice(-2), [["@ramon-sg/skills-manager@1.1.0", "update", "close-pr"], ["@ramon-sg/skills-manager@1.1.0", "update", "pr-review-comments"]]);
 });
 
 test("new skills in a catalog are offered unticked, and --yes leaves them", () => {
@@ -186,4 +190,74 @@ test("the latest tag is the highest version, not the last one as text", () => {
 
   assert.equal(r.status, 0, r.err);
   assert.match(r.out, /\[x\] claude-repo-guard 0\.9\.0 → 0\.10\.0/);
+});
+
+test("when the flow is installed in this run, a guard already at the latest gets the flow's options too", () => {
+  const repo = makeRepo();
+  repo.write(".claude/repo-guard.manifest.json", { version: "0.2.0" });
+  repo.write(".claude/repo-guard.config.json", { weakerNetworkIsolation: true });
+
+  const r = repo.cli(["--yes", "--skip", "claude-cloud,skills"]);
+
+  assert.equal(r.status, 0, r.err);
+  assert.match(repo.read(".claude/repo-guard.config.json").environment[0], /issue-flow is this repo's issue workflow/);
+  assert.deepEqual(repo.calls(), [["@ramon-sg/issue-flow@0.2.0", "init", "--yes"], ["github:ramon-sg/claude-repo-guard#v0.2.0", "install", "--yes"]]);
+});
+
+test("on macOS a weakerNetworkIsolation the guard left false is offered as true", { skip: process.platform !== "darwin" }, () => {
+  const repo = installedRepo();
+  repo.write(".claude/repo-guard.config.json", { ...repo.read(".claude/repo-guard.config.json"), weakerNetworkIsolation: false });
+
+  const r = repo.cli(["--yes"]);
+
+  assert.equal(r.status, 0, r.err);
+  assert.equal(repo.read(".claude/repo-guard.config.json").weakerNetworkIsolation, true);
+});
+
+test("a flow version that is not an exact release is shown and left alone", () => {
+  const repo = installedRepo();
+  repo.write("package.json", { devDependencies: { "@ramon-sg/issue-flow": "file:../issue-flow", "@ramon-sg/skills-manager": "1.1.0" } });
+
+  const r = repo.cli(["--dry-run", "--skip", "skills"]);
+
+  assert.equal(r.status, 0, r.err);
+  assert.match(r.out, /issue-flow +package\.json has file:\.\.\/issue-flow, not an exact release/);
+  assert.doesNotMatch(r.out, /\[x\] issue-flow/);
+});
+
+test("updating claude-cloud moves a $schema pinned to its version as well", () => {
+  const repo = installedRepo({ cloud: "1.0.0" });
+  repo.write(".claude/cloud.json", { $schema: "https://unpkg.com/@ramon-sg/claude-cloud@1.0.0/schema.json", version: "1.0.0", apt: ["jq"] });
+
+  const r = repo.cli(["--yes"]);
+
+  assert.equal(r.status, 0, r.err);
+  assert.deepEqual(repo.read(".claude/cloud.json"), { $schema: "https://unpkg.com/@ramon-sg/claude-cloud@1.1.0/schema.json", version: "1.1.0", apt: ["jq"] });
+});
+
+test("a general catalog that follows a branch is not offered as behind, and skills already in the lock are not new", () => {
+  const repo = installedRepo({ general: "v0.1.0" });
+  const manifest = repo.read(".agents/skills.json");
+  manifest.sources[1].ref = "main";
+  repo.write(".agents/skills.json", manifest);
+
+  const r = repo.cli(["--dry-run"], { env: { FAKE_CANDIDATES: JSON.stringify([{ name: "pr-review-comments" }, { name: "planning" }]) } });
+
+  assert.equal(r.status, 0, r.err);
+  assert.doesNotMatch(r.out, /ramon-sg\/agent-skills: /);
+  assert.match(r.out, /\[ \] skills: 1 more to pick \(planning\)/);
+});
+
+test("the skills lock is where the manifest's paths.lock says", () => {
+  const repo = installedRepo({ general: "v0.1.0" });
+  const lock = repo.read(".agents/skills.lock.json");
+  repo.write("tools/skills.lock.json", lock);
+  repo.write(".agents/skills.lock.json", { lockVersion: 2, skills: {} });
+  repo.write(".agents/skills.json", { ...repo.read(".agents/skills.json"), paths: { lock: "tools/skills.lock.json" } });
+
+  const r = repo.cli(["--yes"]);
+
+  assert.equal(r.status, 0, r.err);
+  assert.deepEqual(repo.calls().filter((args) => args[1] === "update").map((args) => args[2]), ["code-audit", "test-audit"]);
+  assert.equal(repo.read("tools/skills.lock.json").skills["code-audit"].tag, "v0.2.0");
 });

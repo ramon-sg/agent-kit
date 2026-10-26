@@ -36,10 +36,11 @@ export interface Step {
   run: (context: Context) => boolean;
 }
 
-/** What a piece found in the repo. */
+/** What a piece found in the repo: whether it has it, how it is, and the steps offered. */
 export interface PieceStatus {
   name: string;
   summary: string;
+  installed: boolean;
   state: string;
   steps: Step[];
 }

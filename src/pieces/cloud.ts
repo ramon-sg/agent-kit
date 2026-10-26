@@ -1,7 +1,8 @@
 /**
  * @file Claude cloud sessions (`@ramon-sg/claude-cloud`). The repo's version is the one
  * `.claude/cloud.json` pins: the cloud machine runs exactly that one. Installing runs its
- * `init`; updating only moves that version, which is how `claude-cloud` updates. Outside
+ * `init`; updating only moves that version (and a `$schema` pinned to a version), which is
+ * how `claude-cloud` updates. Outside
  * the cloud its hook does nothing, so a repo nobody opens in the cloud loses nothing.
  */
 import { warn } from "../output.js";
@@ -54,7 +55,9 @@ function stepFor(config: Record<string, unknown> | null, latest: string | null):
     checked: true,
     label: `claude-cloud ${version ?? "?"} → ${latest}: the version ${CONFIG} pins`,
     run: (context) => {
-      writeJson(context.root, CONFIG, { ...(readJson(context.root, CONFIG) ?? {}), version: latest });
+      const current = readJson(context.root, CONFIG) ?? {};
+      const schema = typeof current.$schema === "string" ? current.$schema.replace(/@ramon-sg\/claude-cloud@[^/]+\//, `${PACKAGE}@${latest}/`) : undefined;
+      writeJson(context.root, CONFIG, { ...current, ...(schema === undefined ? {} : { $schema: schema }), version: latest });
       return true;
     },
   };
@@ -73,7 +76,7 @@ export function cloudStatus(root: string): PieceStatus {
   const step = stepFor(config, latest);
   const known = latest === null ? " (npm cannot tell the latest)" : "";
   const state = config === null ? `not installed${known}` : version === null ? `${CONFIG} pins no version` : step === null ? `${version}${known}` : `${version}, ${latest ?? "?"} available`;
-  return { name: NAME, summary: "Claude cloud sessions: tools, Docker and the full clone", state, steps: step === null ? [] : [step] };
+  return { name: NAME, summary: "Claude cloud sessions: tools, Docker and the full clone", installed: config !== null, state, steps: step === null ? [] : [step] };
 }
 
 /**
@@ -86,7 +89,7 @@ export function cloudChecks(root: string): Check[] {
   const config = readJson(root, CONFIG);
   if (config === null) return [{ name: NAME, status: "info", detail: "not installed" }];
   const version = pinned(config);
-  if (version === null) return [{ name: NAME, status: "fail", detail: `${CONFIG} pins no exact version; run 'npx ${PACKAGE}@1 init'` }];
+  if (version === null) return [{ name: NAME, status: "fail", detail: `${CONFIG} pins no exact version: set "version" to the one to run, like "${npmLatest(PACKAGE) ?? "1.0.0"}"` }];
   const latest = npmLatest(PACKAGE);
   if (latest !== null && compareVersions(latest, version) > 0) return [{ name: NAME, status: "info", detail: `${version}, ${latest} available: run npx @ramon-sg/agent-kit` }];
   return [{ name: NAME, status: "ok", detail: version }];

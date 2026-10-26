@@ -7,8 +7,8 @@
 import { warn } from "../output.js";
 import { type Check, type Context, FLOW_CATALOG, FLOW_PACKAGE, type PieceStatus, type Step } from "../piece.js";
 import { dependencyVersion, readJson } from "../repo.js";
-import { catalogSkills, manifestCatalogs, pinCatalog, skillsManagerSpec } from "../skills-files.js";
-import { captureNpx, compareVersions, npmLatest, runNpx } from "../tools.js";
+import { catalogSkills, manifestCatalogs, pinCatalog, updateSkills } from "../skills-files.js";
+import { captureNpx, compareVersions, isRelease, npmLatest, runNpx } from "../tools.js";
 
 /** The piece's name, as `--skip` takes it. */
 export const NAME = "issue-flow";
@@ -16,14 +16,29 @@ export const NAME = "issue-flow";
 /** How the catalog's ref is named when it is off. */
 const SKILLS_CATALOG_LABEL = "the catalog";
 
+/** The first version whose `doctor` prints `--json`. */
+const JSON_DOCTOR = "0.2.0";
+
 /**
- * The issue flow's version in the repo.
+ * The issue flow's version in the repo, as package.json has it: an exact release when the
+ * flow set it up, or anything else (a range, a `file:` link) someone wrote by hand.
  * @param root - The repo.
  * @returns The version in package.json, or null.
  * @example flowVersion(root) // "0.2.0"
  */
-export function flowVersion(root: string): string | null {
+export function flowSpec(root: string): string | null {
   return dependencyVersion(readJson(root, "package.json"), FLOW_PACKAGE);
+}
+
+/**
+ * The issue flow's release in the repo: what package.json pins, if it is an exact release.
+ * @param root - The repo.
+ * @returns The version, or null if there is none or it is not a release.
+ * @example flowVersion(root) // "0.2.0"
+ */
+export function flowVersion(root: string): string | null {
+  const spec = flowSpec(root);
+  return spec !== null && isRelease(spec) ? spec : null;
 }
 
 /**
@@ -48,11 +63,9 @@ function skillsOff(root: string, version: string): string[] {
  */
 function moveSkills(context: Context, version: string): boolean {
   if (!pinCatalog(context.root, FLOW_CATALOG, `v${version}`)) return true;
-  const names = catalogSkills(context.root, FLOW_CATALOG).map((skill) => skill.name);
-  if (names.length === 0) return true;
-  const spec = skillsManagerSpec(context.root);
-  if (runNpx(context.root, [spec, "update", ...names])) return true;
-  warn(context.out, `skills-manager did not update the flow's skills; run 'npx ${spec} update ${names.join(" ")}'.`);
+  const failed = updateSkills(context.root, catalogSkills(context.root, FLOW_CATALOG).map((skill) => skill.name));
+  if (failed === null) return true;
+  warn(context.out, `skills-manager did not update the flow's skills; run '${failed}' and then agent-kit again.`);
   return false;
 }
 
@@ -93,12 +106,15 @@ function stepFor(installed: string | null, latest: string | null, root: string):
  * @example issueFlowStatus(root).state // "0.1.0, 0.2.0 available"
  */
 export function issueFlowStatus(root: string): PieceStatus {
+  const summary = "the issue flow: branch, worktree and draft PR per issue, and its skills";
+  const spec = flowSpec(root);
+  if (spec !== null && !isRelease(spec)) return { name: NAME, summary, installed: true, state: `package.json has ${spec}, not an exact release; agent-kit leaves it`, steps: [] };
   const installed = flowVersion(root);
   const latest = npmLatest(FLOW_PACKAGE);
   const step = stepFor(installed, latest, root);
   const known = latest === null ? " (npm cannot tell the latest)" : "";
   const state = installed === null ? `not installed${known}` : latest !== null && compareVersions(latest, installed) > 0 ? `${installed}, ${latest} available` : `${installed}${known}`;
-  return { name: NAME, summary: "the issue flow: branch, worktree and draft PR per issue, and its skills", state, steps: step === null ? [] : [step] };
+  return { name: NAME, summary, installed: installed !== null, state, steps: step === null ? [] : [step] };
 }
 
 /**
@@ -108,8 +124,11 @@ export function issueFlowStatus(root: string): PieceStatus {
  * @example issueFlowChecks(root)[0].name // "issue-flow: .agents/flow.json"
  */
 export function issueFlowChecks(root: string): Check[] {
+  const spec = flowSpec(root);
+  if (spec === null) return [{ name: NAME, status: "info", detail: "not installed" }];
   const installed = flowVersion(root);
-  if (installed === null) return [{ name: NAME, status: "info", detail: "not installed" }];
+  if (installed === null) return [{ name: NAME, status: "info", detail: `package.json has ${spec}, not an exact release` }];
+  if (compareVersions(installed, JSON_DOCTOR) < 0) return [{ name: NAME, status: "info", detail: `${installed} predates its doctor --json: run npx @ramon-sg/agent-kit to update it` }];
   const result = captureNpx(root, [`${FLOW_PACKAGE}@${installed}`, "doctor", "--json"]);
   let found: unknown;
   try {

@@ -7,7 +7,8 @@
 //  - claude-repo-guard install writes its manifest at the tag's version; doctor --json prints
 //    FAKE_GUARD_DOCTOR.
 //  - skills-manager add --candidates prints FAKE_CANDIDATES; init writes a manifest; check
-//    fails with FAKE_CHECK_FAIL.
+//    fails with FAKE_CHECK_FAIL; update takes one name, like the real one (which ignores the
+//    rest), and moves that skill in the lock to its catalog's ref, or to FAKE_UPDATE_TAG.
 // Any npx call whose arguments contain FAKE_FAIL exits 1.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -61,4 +62,17 @@ if (spec.startsWith("@ramon-sg/issue-flow@")) {
   if (rest.includes("--candidates")) process.stdout.write(process.env.FAKE_CANDIDATES ?? "[]");
   else if (command === "init") writeJson(join(cwd, ".agents", "skills.json"), { sources: [] });
   else if (command === "check" && process.env.FAKE_CHECK_FAIL) process.exit(1);
+  else if (command === "update") {
+    if (rest.length !== 1) {
+      process.stderr.write("fake skills-manager: update takes one name\n");
+      process.exit(2);
+    }
+    const manifest = readJson(join(cwd, ".agents", "skills.json"));
+    const lockFile = join(cwd, manifest?.paths?.lock ?? ".agents/skills.lock.json");
+    const lock = readJson(lockFile);
+    const entry = lock.skills[rest[0]];
+    const source = manifest.sources.find((item) => entry.source === `catalog:${item.catalog}`);
+    entry.tag = source?.ref ?? process.env.FAKE_UPDATE_TAG ?? "v0.2.0";
+    writeJson(lockFile, lock);
+  }
 }
