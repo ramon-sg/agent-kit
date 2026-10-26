@@ -93,7 +93,7 @@ function updateStep(root: string, catalog: string, ref: string | null): Step | n
       if (ref !== null) pinCatalog(context.root, catalog, `v${latest}`);
       const failed = updateSkills(context.root, behind.map((skill) => skill.name));
       if (failed === null) return true;
-      warn(context.out, `skills-manager did not update ${catalog}; run '${failed}' and then agent-kit again.`);
+      warn(context.out, `skills-manager did not update ${catalog}; run '${failed}' and then agent-kitchen again.`);
       return false;
     },
   };

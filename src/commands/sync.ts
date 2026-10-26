@@ -1,5 +1,5 @@
 /**
- * @file `agent-kit [--yes] [--dry-run] [--skip <piece>,...]`: the one command. It looks at
+ * @file `agent-kitchen [--yes] [--dry-run] [--skip <piece>,...]`: the one command. It looks at
  * each piece (the issue flow, claude-cloud, claude-repo-guard, the skills), shows what the
  * repo has and the latest of each, and offers the steps that install what is missing or
  * update what is behind. In a terminal the person unticks what they do not want; with
@@ -85,7 +85,7 @@ export async function sync(options: SyncOptions, out: Output): Promise<number> {
   const unknown = options.skip.find((name) => !pieceNames().includes(name));
   if (unknown !== undefined) throw new UsageError(`unknown piece ${unknown}; there are ${pieceNames().join(", ")}.`);
   if (options.yes && options.dryRun) throw new UsageError("use --yes or --dry-run, not both.");
-  const root = mainCheckout(options.cwd, "agent-kit");
+  const root = mainCheckout(options.cwd, "agent-kitchen");
   const statuses: PieceStatus[] = [];
   for (const piece of PIECES.filter((item) => !options.skip.includes(item.name))) statuses.push(piece.status(root, statuses));
   printStatus(statuses, out);

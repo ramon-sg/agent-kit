@@ -1,10 +1,10 @@
-# agent-kit
+# agent-kitchen
 
 Un solo comando para instalar, actualizar y revisar lo que un repo usa para trabajar con agentes: el flujo de issues con sus skills, las skills generales, las sesiones de Claude en la nube y las barandas de seguridad.
 
 ```sh
-npx agent-kit          # muestra qué hay, qué falta y qué está atrasado, y pregunta
-npx agent-kit doctor   # revisa que todo funcione, sin cambiar nada
+npx agent-kitchen          # muestra qué hay, qué falta y qué está atrasado, y pregunta
+npx agent-kitchen doctor   # revisa que todo funcione, sin cambiar nada
 ```
 
 Al arrancar revisa si npm tiene una versión más nueva de sí mismo. Si la hay, corre esa con los mismos argumentos, así que `npx` nunca usa una copia vieja de su caché.
@@ -13,7 +13,7 @@ Al arrancar revisa si npm tiene una versión más nueva de sí mismo. Si la hay,
 
 - Muestra cada pieza con la versión que tiene el repo y la última que existe.
 - Ofrece instalar lo que falta y actualizar lo que está atrasado, en un menú de casillas. Todo viene marcado; desmarcas lo que no quieres.
-- Cada pieza la instala su propia herramienta. `agent-kit` solo sabe cuáles hay, en qué versión están y cómo se conectan entre sí.
+- Cada pieza la instala su propia herramienta. `agent-kitchen` solo sabe cuáles hay, en qué versión están y cómo se conectan entre sí.
 - Correrlo de nuevo no rompe nada: si todo está al día, lo dice y termina.
 
 ## Las piezas
@@ -37,11 +37,11 @@ Si npm o GitHub no responden, la pieza se muestra pero no se ofrece actualizarla
 ## Uso
 
 ```sh
-npx agent-kit                        # menú, en una terminal
-npx agent-kit --dry-run              # solo muestra qué ofrecería
-npx agent-kit --yes                  # hace lo sugerido sin preguntar
-npx agent-kit --skip claude-cloud    # deja fuera una pieza (o varias, con comas)
-npx agent-kit doctor                 # revisa cada pieza con su propio doctor
+npx agent-kitchen                        # menú, en una terminal
+npx agent-kitchen --dry-run              # solo muestra qué ofrecería
+npx agent-kitchen --yes                  # hace lo sugerido sin preguntar
+npx agent-kitchen --skip claude-cloud    # deja fuera una pieza (o varias, con comas)
+npx agent-kitchen doctor                 # revisa cada pieza con su propio doctor
 ```
 
 - **Sin terminal y sin `--yes`** (por ejemplo, desde un agente), solo muestra lo que ofrecería.
@@ -70,7 +70,7 @@ Una versión es una release `vX.Y.Z` en GitHub, con el mismo número que `packag
 La primera versión va a mano, porque npm solo deja configurar la publicación desde GitHub en un paquete que ya existe:
 
 1. `npm login` y, desde `main`, `npm publish --provenance=false`.
-2. En npmjs.com, en el paquete, Settings → Trusted publishing: GitHub Actions, repo `ramon-sg/agent-kit`, workflow `publish.yml`.
+2. En npmjs.com, en el paquete, Settings → Trusted publishing: GitHub Actions, repo `ramon-sg/agent-kitchen`, workflow `publish.yml`.
 3. Pushear la tag de esa versión sin crear una release: una release volvería a publicar la misma versión y fallaría.
 
 ## Licencia

@@ -1,9 +1,9 @@
 /**
- * @file What agent-kit knows of each piece it manages, and the names they share. A piece
+ * @file What agent-kitchen knows of each piece it manages, and the names they share. A piece
  * (the issue flow, claude-cloud, claude-repo-guard, the skills) tells what the repo has and
- * the steps that would install or update it; agent-kit shows them, lets the person pick,
+ * the steps that would install or update it; agent-kitchen shows them, lets the person pick,
  * and runs the picked ones in order. Every step runs the piece's own tool, which owns its
- * files: agent-kit only writes the few lines that join two pieces.
+ * files: agent-kitchen only writes the few lines that join two pieces.
  */
 import type { Output } from "./output.js";
 
@@ -52,7 +52,7 @@ export interface Context {
   out: Output;
 }
 
-/** One check of `agent-kit doctor`: passed, failed, or only worth knowing. */
+/** One check of `agent-kitchen doctor`: passed, failed, or only worth knowing. */
 export interface Check {
   name: string;
   status: "ok" | "fail" | "info";

@@ -1,4 +1,4 @@
-// Tests of `agent-kit doctor`: it asks each tool's own doctor at the repo's version, adds
+// Tests of `agent-kitchen doctor`: it asks each tool's own doctor at the repo's version, adds
 // what joins the pieces (the flow's skills at its tag, the guard's option on macOS), and
 // only notes what is missing or behind.
 import { test } from "node:test";
@@ -60,6 +60,6 @@ test("doctor does not ask a flow that predates doctor --json, and says to update
   const r = repo.cli(["doctor"]);
 
   assert.equal(r.status, 0, r.out);
-  assert.match(r.out, /· issue-flow: 0\.1\.0 predates its doctor --json: run npx agent-kit/);
+  assert.match(r.out, /· issue-flow: 0\.1\.0 predates its doctor --json: run npx agent-kitchen/);
   assert.ok(repo.calls().every((args) => !args[0].startsWith("@ramon-sg/issue-flow")));
 });

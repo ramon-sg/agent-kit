@@ -1,7 +1,7 @@
 /**
  * @file The guardrails (`claude-repo-guard`): auto mode with the sandbox, installed in the
  * repo. It is not on npm, so it runs from GitHub at its `vX.Y.Z` tag; the repo's version is
- * the one its manifest records. Before installing or updating, agent-kit writes in its
+ * the one its manifest records. Before installing or updating, agent-kitchen writes in its
  * options what the issue flow needs, if the repo has the flow: the auto mode is told that
  * the flow's writes are normal, the flow's base branch becomes `integrationBranch`, and on
  * macOS `weakerNetworkIsolation` lets `gh` work inside the sandbox (the guard's own default
@@ -162,7 +162,7 @@ export function guardChecks(root: string): Check[] {
   if (installed === undefined) return [{ name: NAME, status: "info", detail: "not installed (Claude opens with your own permissions)" }];
   const checks: Check[] = [];
   if (process.platform === "darwin" && readJson(root, CONFIG)?.[WEAKER_NETWORK] !== true)
-    checks.push({ name: `${NAME}: ${WEAKER_NETWORK}`, status: "fail", detail: `not true in ${CONFIG}, so gh fails inside the macOS sandbox: run npx agent-kit` });
+    checks.push({ name: `${NAME}: ${WEAKER_NETWORK}`, status: "fail", detail: `not true in ${CONFIG}, so gh fails inside the macOS sandbox: run npx agent-kitchen` });
   const result = captureNpx(root, [guardSpec(installed), "doctor", "--json"]);
   let found: unknown;
   try {

@@ -1,4 +1,4 @@
-// Tests of the main command, `agent-kit`, on real checkouts: what it shows and offers for
+// Tests of the main command, `agent-kitchen`, on real checkouts: what it shows and offers for
 // each piece, the order it runs the steps in with --yes, what it writes itself (the guard's
 // options, the version of claude-cloud, the flow catalog's tag) and what it leaves to each
 // tool, through the fakes of fake-tools.mjs.
@@ -169,7 +169,7 @@ test("it refuses to run in a worktree", () => {
   const r = repo.cli(["--yes"], { cwd: dir });
 
   assert.equal(r.status, 1);
-  assert.match(r.err, /run agent-kit in the main checkout/);
+  assert.match(r.err, /run agent-kitchen in the main checkout/);
   assert.deepEqual(repo.calls(), []);
 });
 
@@ -262,17 +262,17 @@ test("the skills lock is where the manifest's paths.lock says", () => {
   assert.equal(repo.read("tools/skills.lock.json").skills["code-audit"].tag, "v0.2.0");
 });
 
-test("when npm has a newer agent-kit it runs that one with the same arguments, and that one does not hand over again", () => {
+test("when npm has a newer agent-kitchen it runs that one with the same arguments, and that one does not hand over again", () => {
   const repo = makeRepo();
-  const npm = JSON.stringify({ "agent-kit": "9.0.0", "@ramon-sg/issue-flow": "0.2.0", "@ramon-sg/claude-cloud": "1.1.0" });
+  const npm = JSON.stringify({ "agent-kitchen": "9.0.0", "@ramon-sg/issue-flow": "0.2.0", "@ramon-sg/claude-cloud": "1.1.0" });
 
   const handed = repo.cli(["--dry-run", "--skip", "skills"], { env: { FAKE_NPM: npm } });
   const calls = repo.calls();
-  const again = repo.cli(["--dry-run"], { env: { FAKE_NPM: npm, AGENT_KIT_HANDED_OVER: "0.1.0" } });
+  const again = repo.cli(["--dry-run"], { env: { FAKE_NPM: npm, AGENT_KITCHEN_HANDED_OVER: "0.1.0" } });
 
   assert.equal(handed.status, 0, handed.err);
   assert.match(handed.err, /running 9\.0\.0, the latest/);
-  assert.deepEqual(calls, [["agent-kit@9.0.0", "--dry-run", "--skip", "skills"]]);
+  assert.deepEqual(calls, [["agent-kitchen@9.0.0", "--dry-run", "--skip", "skills"]]);
   assert.doesNotMatch(handed.out, /This repo has/);
   assert.equal(again.status, 0, again.err);
   assert.match(again.out, /This repo has/);

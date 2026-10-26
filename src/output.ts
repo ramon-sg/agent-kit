@@ -36,5 +36,5 @@ export function processOutput(): Output {
  * @example warn(out, "claude-cloud init failed")
  */
 export function warn(out: Output, text: string): void {
-  out.stderr(`agent-kit: ${text}\n`);
+  out.stderr(`agent-kitchen: ${text}\n`);
 }

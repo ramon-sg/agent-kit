@@ -1,5 +1,5 @@
 /**
- * @file The repo agent-kit works on: its main checkout (never a worktree, whose files are
+ * @file The repo agent-kitchen works on: its main checkout (never a worktree, whose files are
  * not the ones the team commits from), the JSON files the pieces keep in it, and its
  * package manager.
  */
@@ -35,7 +35,7 @@ function git(cwd: string, args: string[]): string | null {
  * @param command - The command that runs, for the error.
  * @returns Its root, with symlinks resolved.
  * @throws KitError outside a git checkout or inside a worktree.
- * @example mainCheckout(process.cwd(), "agent-kit") // "/code/shop"
+ * @example mainCheckout(process.cwd(), "agent-kitchen") // "/code/shop"
  */
 export function mainCheckout(cwd: string, command: string): string {
   const common = git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
