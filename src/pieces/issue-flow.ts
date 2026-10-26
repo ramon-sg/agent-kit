@@ -128,7 +128,7 @@ export function issueFlowChecks(root: string): Check[] {
   if (spec === null) return [{ name: NAME, status: "info", detail: "not installed" }];
   const installed = flowVersion(root);
   if (installed === null) return [{ name: NAME, status: "info", detail: `package.json has ${spec}, not an exact release` }];
-  if (compareVersions(installed, JSON_DOCTOR) < 0) return [{ name: NAME, status: "info", detail: `${installed} predates its doctor --json: run npx @ramon-sg/agent-kit to update it` }];
+  if (compareVersions(installed, JSON_DOCTOR) < 0) return [{ name: NAME, status: "info", detail: `${installed} predates its doctor --json: run npx agent-kit to update it` }];
   const result = captureNpx(root, [`${FLOW_PACKAGE}@${installed}`, "doctor", "--json"]);
   let found: unknown;
   try {
@@ -145,6 +145,6 @@ export function issueFlowChecks(root: string): Check[] {
     ? { name: `${NAME}: skills`, status: "info", detail: "none installed" }
     : off.length === 0
     ? { name: `${NAME}: skills`, status: "ok", detail: `${count} at v${installed}` }
-    : { name: `${NAME}: skills`, status: "fail", detail: `${off.join(", ")}, the CLI is ${installed}: run npx @ramon-sg/agent-kit` };
+    : { name: `${NAME}: skills`, status: "fail", detail: `${off.join(", ")}, the CLI is ${installed}: run npx agent-kit` };
   return [...own, skills];
 }

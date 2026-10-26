@@ -3,11 +3,11 @@
 Un solo comando para instalar, actualizar y revisar lo que un repo usa para trabajar con agentes: el flujo de issues con sus skills, las skills generales, las sesiones de Claude en la nube y las barandas de seguridad.
 
 ```sh
-npx @ramon-sg/agent-kit@latest          # muestra qué hay, qué falta y qué está atrasado, y pregunta
-npx @ramon-sg/agent-kit@latest doctor   # revisa que todo funcione, sin cambiar nada
+npx agent-kit          # muestra qué hay, qué falta y qué está atrasado, y pregunta
+npx agent-kit doctor   # revisa que todo funcione, sin cambiar nada
 ```
 
-El paquete es `@ramon-sg/agent-kit` y el comando, `agent-kit`. El `@latest` hace que `npx` no use una copia vieja guardada en su caché.
+Al arrancar revisa si npm tiene una versión más nueva de sí mismo. Si la hay, corre esa con los mismos argumentos, así que `npx` nunca usa una copia vieja de su caché.
 
 ## En simple
 
@@ -37,11 +37,11 @@ Si npm o GitHub no responden, la pieza se muestra pero no se ofrece actualizarla
 ## Uso
 
 ```sh
-npx @ramon-sg/agent-kit@latest                        # menú, en una terminal
-npx @ramon-sg/agent-kit@latest --dry-run              # solo muestra qué ofrecería
-npx @ramon-sg/agent-kit@latest --yes                  # hace lo sugerido sin preguntar
-npx @ramon-sg/agent-kit@latest --skip claude-cloud    # deja fuera una pieza (o varias, con comas)
-npx @ramon-sg/agent-kit@latest doctor                 # revisa cada pieza con su propio doctor
+npx agent-kit                        # menú, en una terminal
+npx agent-kit --dry-run              # solo muestra qué ofrecería
+npx agent-kit --yes                  # hace lo sugerido sin preguntar
+npx agent-kit --skip claude-cloud    # deja fuera una pieza (o varias, con comas)
+npx agent-kit doctor                 # revisa cada pieza con su propio doctor
 ```
 
 - **Sin terminal y sin `--yes`** (por ejemplo, desde un agente), solo muestra lo que ofrecería.
@@ -71,7 +71,7 @@ La primera versión va a mano, porque npm solo deja configurar la publicación d
 
 1. `npm login` y, desde `main`, `npm publish --provenance=false`.
 2. En npmjs.com, en el paquete, Settings → Trusted publishing: GitHub Actions, repo `ramon-sg/agent-kit`, workflow `publish.yml`.
-3. Pushear la tag `v0.1.0` sin crear una release: una release volvería a publicar la misma versión y fallaría.
+3. Pushear la tag de esa versión sin crear una release: una release volvería a publicar la misma versión y fallaría.
 
 ## Licencia
 

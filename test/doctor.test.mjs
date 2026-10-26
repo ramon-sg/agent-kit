@@ -60,6 +60,6 @@ test("doctor does not ask a flow that predates doctor --json, and says to update
   const r = repo.cli(["doctor"]);
 
   assert.equal(r.status, 0, r.out);
-  assert.match(r.out, /· issue-flow: 0\.1\.0 predates its doctor --json: run npx @ramon-sg\/agent-kit/);
+  assert.match(r.out, /· issue-flow: 0\.1\.0 predates its doctor --json: run npx agent-kit/);
   assert.ok(repo.calls().every((args) => !args[0].startsWith("@ramon-sg/issue-flow")));
 });

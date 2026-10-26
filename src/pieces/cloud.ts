@@ -91,6 +91,6 @@ export function cloudChecks(root: string): Check[] {
   const version = pinned(config);
   if (version === null) return [{ name: NAME, status: "fail", detail: `${CONFIG} pins no exact version: set "version" to the one to run, like "${npmLatest(PACKAGE) ?? "1.0.0"}"` }];
   const latest = npmLatest(PACKAGE);
-  if (latest !== null && compareVersions(latest, version) > 0) return [{ name: NAME, status: "info", detail: `${version}, ${latest} available: run npx @ramon-sg/agent-kit` }];
+  if (latest !== null && compareVersions(latest, version) > 0) return [{ name: NAME, status: "info", detail: `${version}, ${latest} available: run npx agent-kit` }];
   return [{ name: NAME, status: "ok", detail: version }];
 }
