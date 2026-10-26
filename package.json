@@ -1,0 +1,22 @@
+{
+  "name": "@ramon-sg/agent-kit",
+  "version": "0.1.0",
+  "description": "One command to install, update and check a repo's agent tooling: the issue flow and its skills, the general skills, Claude cloud sessions and claude-repo-guard.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "agent-kit": "dist/cli.js" },
+  "files": ["dist"],
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public", "provenance": true },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ramon-sg/agent-kit.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "dependencies": { "@clack/prompts": "1.8.1" },
+  "devDependencies": { "@types/node": "^24.0.0", "typescript": "^5.9.3" }
+}
