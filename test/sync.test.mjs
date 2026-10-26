@@ -261,3 +261,19 @@ test("the skills lock is where the manifest's paths.lock says", () => {
   assert.deepEqual(repo.calls().filter((args) => args[1] === "update").map((args) => args[2]), ["code-audit", "test-audit"]);
   assert.equal(repo.read("tools/skills.lock.json").skills["code-audit"].tag, "v0.2.0");
 });
+
+test("when npm has a newer agent-kit it runs that one with the same arguments, and that one does not hand over again", () => {
+  const repo = makeRepo();
+  const npm = JSON.stringify({ "agent-kit": "9.0.0", "@ramon-sg/issue-flow": "0.2.0", "@ramon-sg/claude-cloud": "1.1.0" });
+
+  const handed = repo.cli(["--dry-run", "--skip", "skills"], { env: { FAKE_NPM: npm } });
+  const calls = repo.calls();
+  const again = repo.cli(["--dry-run"], { env: { FAKE_NPM: npm, AGENT_KIT_HANDED_OVER: "0.1.0" } });
+
+  assert.equal(handed.status, 0, handed.err);
+  assert.match(handed.err, /running 9\.0\.0, the latest/);
+  assert.deepEqual(calls, [["agent-kit@9.0.0", "--dry-run", "--skip", "skills"]]);
+  assert.doesNotMatch(handed.out, /This repo has/);
+  assert.equal(again.status, 0, again.err);
+  assert.match(again.out, /This repo has/);
+});

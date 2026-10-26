@@ -1,6 +1,6 @@
 {
-  "name": "@ramon-sg/agent-kit",
-  "version": "0.1.0",
+  "name": "agent-kit",
+  "version": "0.2.0",
   "description": "One command to install, update and check a repo's agent tooling: the issue flow and its skills, the general skills, Claude cloud sessions and claude-repo-guard.",
   "license": "MIT",
   "type": "module",

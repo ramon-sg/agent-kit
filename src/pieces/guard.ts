@@ -162,7 +162,7 @@ export function guardChecks(root: string): Check[] {
   if (installed === undefined) return [{ name: NAME, status: "info", detail: "not installed (Claude opens with your own permissions)" }];
   const checks: Check[] = [];
   if (process.platform === "darwin" && readJson(root, CONFIG)?.[WEAKER_NETWORK] !== true)
-    checks.push({ name: `${NAME}: ${WEAKER_NETWORK}`, status: "fail", detail: `not true in ${CONFIG}, so gh fails inside the macOS sandbox: run npx @ramon-sg/agent-kit` });
+    checks.push({ name: `${NAME}: ${WEAKER_NETWORK}`, status: "fail", detail: `not true in ${CONFIG}, so gh fails inside the macOS sandbox: run npx agent-kit` });
   const result = captureNpx(root, [guardSpec(installed), "doctor", "--json"]);
   let found: unknown;
   try {
