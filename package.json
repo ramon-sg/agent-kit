@@ -1,16 +1,16 @@
 {
-  "name": "agent-kit",
+  "name": "agent-kitchen",
   "version": "0.2.0",
   "description": "One command to install, update and check a repo's agent tooling: the issue flow and its skills, the general skills, Claude cloud sessions and claude-repo-guard.",
   "license": "MIT",
   "type": "module",
-  "bin": { "agent-kit": "dist/cli.js" },
+  "bin": { "agent-kitchen": "dist/cli.js" },
   "files": ["dist"],
   "engines": { "node": ">=20" },
   "publishConfig": { "access": "public", "provenance": true },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ramon-sg/agent-kit.git"
+    "url": "git+https://github.com/ramon-sg/agent-kitchen.git"
   },
   "scripts": {
     "build": "tsc",

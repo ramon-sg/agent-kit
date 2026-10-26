@@ -1,5 +1,5 @@
 /**
- * @file What agent-kit reads of the files of `skills-manager`: which skills of a catalog
+ * @file What agent-kitchen reads of the files of `skills-manager`: which skills of a catalog
  * the lock has and at which tag (the lock is where the manifest's `paths.lock` says), the
  * catalog's source in the manifest, which `skills-manager` to run (the one the repo pins,
  * or the latest 1.x), and updating skills one by one, because `skills-manager update`

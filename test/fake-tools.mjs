@@ -1,5 +1,5 @@
 // Fake npx and npm for the tests: they log each call (program, arguments, folder) to
-// FAKE_LOG and do the little of each tool that agent-kit reads back afterwards.
+// FAKE_LOG and do the little of each tool that agent-kitchen reads back afterwards.
 //  - npm view <pkg> version prints FAKE_NPM's entry for <pkg> (a JSON map), or fails.
 //  - issue-flow init writes its dev dependencies and .agents/flow.json; upgrade moves its
 //    own version; doctor --json prints FAKE_FLOW_DOCTOR.

@@ -1,5 +1,5 @@
 /**
- * @file How agent-kit reaches the other tools and their releases: `npx` to run them (always
+ * @file How agent-kitchen reaches the other tools and their releases: `npx` to run them (always
  * by their scoped name or GitHub spec, because the unscoped names on npm belong to other
  * people), `npm view` for the latest version on npm, and `git ls-remote` for the latest
  * `vX.Y.Z` tag on GitHub. A lookup that fails, or takes over 20 seconds, gives null: the

@@ -19,7 +19,7 @@ const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8",
 
 // A repo for the tests. `tags` gives the release tags of each GitHub repo.
 export function makeRepo({ tags = { "ramon-sg/claude-repo-guard": ["0.1.0", "0.2.0"], "ramon-sg/agent-skills": ["0.1.0", "0.2.0"] } } = {}) {
-  const tmp = realpathSync(mkdtempSync(join(tmpdir(), "agent-kit-")));
+  const tmp = realpathSync(mkdtempSync(join(tmpdir(), "agent-kitchen-")));
   const main = join(tmp, "main");
   const bin = join(tmp, "bin");
   mkdirSync(main);
@@ -69,7 +69,7 @@ export function makeRepo({ tags = { "ramon-sg/claude-repo-guard": ["0.1.0", "0.2
   };
 }
 
-// A repo as agent-kit leaves it at the given versions: the flow, its skills and the general
+// A repo as agent-kitchen leaves it at the given versions: the flow, its skills and the general
 // ones, claude-cloud and claude-repo-guard (with the flow's options).
 export function installedRepo({ flow = "0.2.0", cloud = "1.1.0", guard = "0.2.0", general = "v0.2.0", tags } = {}) {
   const repo = makeRepo(tags === undefined ? {} : { tags });

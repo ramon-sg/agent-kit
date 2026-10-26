@@ -1,5 +1,5 @@
 /**
- * @file `agent-kit doctor`: whether each piece the repo has works, with the doctor of each
+ * @file `agent-kitchen doctor`: whether each piece the repo has works, with the doctor of each
  * tool at the repo's own version: the issue flow (and its skills at its tag),
  * `skills-manager check`, the version `.claude/cloud.json` pins, and claude-repo-guard. It
  * changes nothing. A piece the repo does not have, or a newer release, is only noted.
@@ -24,7 +24,7 @@ const MARKS: Record<Check["status"], string> = { ok: "✓", fail: "✗", info: "
  * @example doctor(process.cwd(), out)
  */
 export function doctor(cwd: string, out: Output): number {
-  const root = mainCheckout(cwd, "agent-kit doctor");
+  const root = mainCheckout(cwd, "agent-kitchen doctor");
   const checks = [...issueFlowChecks(root), ...skillsChecks(root), ...cloudChecks(root), ...guardChecks(root)];
   for (const check of checks) out.stdout(`${MARKS[check.status]} ${check.name}: ${check.detail}\n`);
   return checks.some((check) => check.status === "fail") ? 1 : 0;
