@@ -2,12 +2,17 @@
  * @file What agent-kitchen reads of the files of `skills-manager`: which skills of a catalog
  * the lock has and at which tag (the lock is where the manifest's `paths.lock` says), the
  * catalog's source in the manifest, which `skills-manager` to run (the one the repo pins,
- * or the latest 1.x), and updating skills one by one, because `skills-manager update`
- * takes a single name.
+ * or the latest 1.x), the repo's own skills (folders the lock does not know), and updating
+ * skills one by one, because `skills-manager update` takes a single name.
  */
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { dependencyVersion, isObject, readJson, writeJson } from "./repo.js";
 import { SKILLS_LOCK, SKILLS_MANAGER, SKILLS_MANIFEST } from "./piece.js";
-import { runNpx } from "./tools.js";
+import { runNpx, type ToolRun } from "./tools.js";
+
+/** Where `skills-manager` puts the skills when the manifest does not say. */
+const SKILLS_DIR = ".agents/skills";
 
 /** A skill in the lock: its name and the tag it is at. */
 export interface LockedSkill {
@@ -41,13 +46,32 @@ export function lockedSkills(root: string): Record<string, unknown> {
  * Runs `skills-manager update <name>` for each skill, stopping at the first that fails.
  * @param root - The repo.
  * @param names - The skills.
- * @returns The command that failed, to retry it, or null if every one worked.
- * @example updateSkills(root, ["close-pr", "pr-review-comments"]) // null
+ * @returns Null if every one worked, or the command that failed, to retry it, and what it printed.
+ * @example await updateSkills(root, ["close-pr", "pr-review-comments"]) // null
  */
-export function updateSkills(root: string, names: string[]): string | null {
+export async function updateSkills(root: string, names: string[]): Promise<{ command: string; run: ToolRun } | null> {
   const spec = skillsManagerSpec(root);
-  const failed = names.find((name) => !runNpx(root, [spec, "update", name]));
-  return failed === undefined ? null : `npx ${spec} update ${failed}`;
+  for (const name of names) {
+    const run = await runNpx(root, [spec, "update", name]);
+    if (!run.ok) return { command: `npx ${spec} update ${name}`, run };
+  }
+  return null;
+}
+
+/**
+ * The repo's own skills among some names: a folder in the skills folder that the lock does
+ * not know, which `skills-manager` replaces only when allowed.
+ * @param root - The repo.
+ * @param names - The skills about to be installed.
+ * @returns The names that are the repo's own.
+ * @example ownSkills(root, ["planning", "code-audit"]) // ["planning"]
+ */
+export function ownSkills(root: string, names: string[]): string[] {
+  const paths = readJson(root, SKILLS_MANIFEST)?.paths;
+  const dir = join(root, isObject(paths) && typeof paths.skillsDir === "string" && paths.skillsDir !== "" ? paths.skillsDir : SKILLS_DIR);
+  const folders = existsSync(dir) ? readdirSync(dir) : [];
+  const locked = lockedSkills(root);
+  return [...new Set(names)].filter((name) => folders.includes(name) && locked[name] === undefined);
 }
 
 /**

@@ -3,8 +3,8 @@
  * The repo's version is the one in package.json. Installing runs its `init` at the latest
  * version; updating runs its `upgrade` at the new one and then moves its skills to the same
  * tag, because the skills call the CLI. If only the skills are off, it moves them alone.
+ * `init` runs with `--yes`: the person answered agent-kitchen's questions before the steps.
  */
-import { warn } from "../output.js";
 import { type Check, type Context, FLOW_CATALOG, FLOW_PACKAGE, type PieceStatus, type Step } from "../piece.js";
 import { dependencyVersion, readJson } from "../repo.js";
 import { catalogSkills, manifestCatalogs, pinCatalog, updateSkills } from "../skills-files.js";
@@ -14,7 +14,7 @@ import { captureNpx, compareVersions, isRelease, npmLatest, runNpx } from "../to
 export const NAME = "issue-flow";
 
 /** How the catalog's ref is named when it is off. */
-const SKILLS_CATALOG_LABEL = "the catalog";
+const SKILLS_CATALOG_LABEL = "el catálogo";
 
 /** The first version whose `doctor` prints `--json`. */
 const JSON_DOCTOR = "0.2.0";
@@ -49,9 +49,9 @@ export function flowVersion(root: string): string | null {
  */
 function skillsOff(root: string, version: string): string[] {
   const tag = `v${version}`;
-  const off = catalogSkills(root, FLOW_CATALOG).filter((skill) => skill.tag !== tag).map((skill) => `${skill.name} at ${skill.tag ?? "no tag"}`);
+  const off = catalogSkills(root, FLOW_CATALOG).filter((skill) => skill.tag !== tag).map((skill) => `${skill.name} en ${skill.tag ?? "sin tag"}`);
   const source = manifestCatalogs(root).find((item) => item.catalog === FLOW_CATALOG);
-  return source !== undefined && source.ref !== tag ? [...off, `${SKILLS_CATALOG_LABEL} at ${source.ref ?? "the latest"}`] : off;
+  return source !== undefined && source.ref !== tag ? [...off, `${SKILLS_CATALOG_LABEL} en ${source.ref ?? "la última"}`] : off;
 }
 
 /**
@@ -61,11 +61,15 @@ function skillsOff(root: string, version: string): string[] {
  * @param version - The flow's version.
  * @returns Whether it worked, or true if the repo has none of the flow's skills.
  */
-function moveSkills(context: Context, version: string): boolean {
+async function moveSkills(context: Context, version: string): Promise<boolean> {
   if (!pinCatalog(context.root, FLOW_CATALOG, `v${version}`)) return true;
-  const failed = updateSkills(context.root, catalogSkills(context.root, FLOW_CATALOG).map((skill) => skill.name));
-  if (failed === null) return true;
-  warn(context.out, `skills-manager did not update the flow's skills; run '${failed}' and then agent-kitchen again.`);
+  const names = catalogSkills(context.root, FLOW_CATALOG).map((skill) => skill.name);
+  const failed = await updateSkills(context.root, names);
+  if (failed === null) {
+    context.note(`skills del flujo en v${version}: ${names.join(", ")}`);
+    return true;
+  }
+  context.fail(`skills-manager no actualizó las skills del flujo; corre '${failed.command}' y luego agent-kitchen otra vez.`, failed.run.output);
   return false;
 }
 
@@ -76,9 +80,10 @@ function moveSkills(context: Context, version: string): boolean {
  * @param args - The command and its flags.
  * @returns Whether it exited 0.
  */
-function runFlow(context: Context, version: string, args: string[]): boolean {
-  if (runNpx(context.root, [`${FLOW_PACKAGE}@${version}`, ...args])) return true;
-  warn(context.out, `issue-flow ${args[0] ?? ""} failed; run 'npx ${FLOW_PACKAGE}@${version} ${args.join(" ")}'.`);
+async function runFlow(context: Context, version: string, args: string[]): Promise<boolean> {
+  const run = await runNpx(context.root, [`${FLOW_PACKAGE}@${version}`, ...args]);
+  if (run.ok) return true;
+  context.fail(`issue-flow ${args[0] ?? ""} falló; corre 'npx ${FLOW_PACKAGE}@${version} ${args.join(" ")}'.`, run.output);
   return false;
 }
 
@@ -91,11 +96,11 @@ function runFlow(context: Context, version: string, args: string[]): boolean {
  */
 function stepFor(installed: string | null, latest: string | null, root: string): Step | null {
   if (installed === null && latest !== null)
-    return { piece: NAME, checked: true, label: `issue-flow ${latest}: .agents/flow.json with its recipes, the hooks and scripts`, run: (context) => runFlow(context, latest, ["init", ...(context.yes ? ["--yes"] : [])]) };
+    return { piece: NAME, checked: true, downloads: [`${FLOW_PACKAGE}@${latest}`], label: `Instalar issue-flow ${latest}: config del flujo, hooks y scripts`, run: (context) => runFlow(context, latest, ["init", "--yes"]) };
   if (installed !== null && latest !== null && compareVersions(latest, installed) > 0)
-    return { piece: NAME, checked: true, label: `issue-flow ${installed} → ${latest}: the CLI, its hooks and its skills`, run: (context) => runFlow(context, latest, ["upgrade"]) && moveSkills(context, latest) };
+    return { piece: NAME, checked: true, downloads: [`${FLOW_PACKAGE}@${latest}`], label: `Actualizar issue-flow ${installed} → ${latest}, con sus hooks y sus skills`, run: async (context) => (await runFlow(context, latest, ["upgrade"])) && (await moveSkills(context, latest)) };
   if (installed !== null && skillsOff(root, installed).length > 0)
-    return { piece: NAME, checked: true, label: `issue-flow's skills → v${installed}, the CLI's version`, run: (context) => moveSkills(context, installed) };
+    return { piece: NAME, checked: true, downloads: [], label: `Poner las skills del flujo en v${installed}, la versión de issue-flow`, run: (context) => moveSkills(context, installed) };
   return null;
 }
 
@@ -103,17 +108,17 @@ function stepFor(installed: string | null, latest: string | null, root: string):
  * What the repo has of the issue flow, and the step it needs.
  * @param root - The repo.
  * @returns The piece's status.
- * @example issueFlowStatus(root).state // "0.1.0, 0.2.0 available"
+ * @example (await issueFlowStatus(root)).state // "0.1.0, hay 0.2.0"
  */
-export function issueFlowStatus(root: string): PieceStatus {
-  const summary = "the issue flow: branch, worktree and draft PR per issue, and its skills";
+export async function issueFlowStatus(root: string): Promise<PieceStatus> {
+  const summary = "rama, worktree y PR en draft por issue";
   const spec = flowSpec(root);
-  if (spec !== null && !isRelease(spec)) return { name: NAME, summary, installed: true, state: `package.json has ${spec}, not an exact release; agent-kitchen leaves it`, steps: [] };
+  if (spec !== null && !isRelease(spec)) return { name: NAME, summary, installed: true, state: `package.json tiene ${spec}, no una versión exacta; no se toca`, steps: [] };
   const installed = flowVersion(root);
-  const latest = npmLatest(FLOW_PACKAGE);
+  const latest = await npmLatest(FLOW_PACKAGE);
   const step = stepFor(installed, latest, root);
-  const known = latest === null ? " (npm cannot tell the latest)" : "";
-  const state = installed === null ? `not installed${known}` : latest !== null && compareVersions(latest, installed) > 0 ? `${installed}, ${latest} available` : `${installed}${known}`;
+  const known = latest === null ? " (npm no responde)" : "";
+  const state = installed === null ? `no instalado${known}` : latest !== null && compareVersions(latest, installed) > 0 ? `${installed}, hay ${latest}` : `${installed}, al día${known}`;
   return { name: NAME, summary, installed: installed !== null, state, steps: step === null ? [] : [step] };
 }
 
@@ -121,15 +126,15 @@ export function issueFlowStatus(root: string): PieceStatus {
  * The flow's own doctor at the repo's version, and whether its skills are at that tag.
  * @param root - The repo.
  * @returns The checks.
- * @example issueFlowChecks(root)[0].name // "issue-flow: .agents/flow.json"
+ * @example (await issueFlowChecks(root))[0].name // "issue-flow: .agents/flow.json"
  */
-export function issueFlowChecks(root: string): Check[] {
+export async function issueFlowChecks(root: string): Promise<Check[]> {
   const spec = flowSpec(root);
-  if (spec === null) return [{ name: NAME, status: "info", detail: "not installed" }];
+  if (spec === null) return [{ name: NAME, status: "info", detail: "no instalado" }];
   const installed = flowVersion(root);
-  if (installed === null) return [{ name: NAME, status: "info", detail: `package.json has ${spec}, not an exact release` }];
-  if (compareVersions(installed, JSON_DOCTOR) < 0) return [{ name: NAME, status: "info", detail: `${installed} predates its doctor --json: run npx agent-kitchen to update it` }];
-  const result = captureNpx(root, [`${FLOW_PACKAGE}@${installed}`, "doctor", "--json"]);
+  if (installed === null) return [{ name: NAME, status: "info", detail: `package.json tiene ${spec}, no una versión exacta` }];
+  if (compareVersions(installed, JSON_DOCTOR) < 0) return [{ name: NAME, status: "info", detail: `${installed} no tiene doctor --json: corre npx agent-kitchen para actualizarlo` }];
+  const result = await captureNpx(root, [`${FLOW_PACKAGE}@${installed}`, "doctor", "--json"]);
   let found: unknown;
   try {
     found = JSON.parse(result?.out ?? "");
@@ -138,13 +143,13 @@ export function issueFlowChecks(root: string): Check[] {
   }
   const own: Check[] = Array.isArray(found)
     ? found.map((check: { name?: unknown; ok?: unknown; detail?: unknown }) => ({ name: `${NAME}: ${String(check.name)}`, status: check.ok === true ? "ok" : "fail", detail: String(check.detail) }))
-    : [{ name: NAME, status: "fail", detail: `could not run its doctor; run 'npx ${FLOW_PACKAGE}@${installed} doctor'` }];
+    : [{ name: NAME, status: "fail", detail: `no se pudo correr su doctor; corre 'npx ${FLOW_PACKAGE}@${installed} doctor'` }];
   const off = skillsOff(root, installed);
   const count = catalogSkills(root, FLOW_CATALOG).length;
   const skills: Check = count === 0 && off.length === 0
-    ? { name: `${NAME}: skills`, status: "info", detail: "none installed" }
+    ? { name: `${NAME}: skills`, status: "info", detail: "ninguna instalada" }
     : off.length === 0
-    ? { name: `${NAME}: skills`, status: "ok", detail: `${count} at v${installed}` }
-    : { name: `${NAME}: skills`, status: "fail", detail: `${off.join(", ")}, the CLI is ${installed}: run npx agent-kitchen` };
+    ? { name: `${NAME}: skills`, status: "ok", detail: `${count} en v${installed}` }
+    : { name: `${NAME}: skills`, status: "fail", detail: `${off.join(", ")}; issue-flow está en ${installed}: corre npx agent-kitchen` };
   return [...own, skills];
 }

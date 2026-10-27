@@ -1,39 +1,43 @@
 /**
- * @file `agent-kitchen [--yes] [--dry-run] [--skip <piece>,...]`: the one command. It looks at
- * each piece (the issue flow, claude-cloud, claude-repo-guard, the skills), shows what the
- * repo has and the latest of each, and offers the steps that install what is missing or
- * update what is behind. In a terminal the person unticks what they do not want; with
- * `--yes` it runs the ticked ones; without a terminal it only shows them. The steps run in
- * order (the flow first, the skills last, since they follow the flow's version) and one that
- * fails does not stop the rest.
+ * @file `agent-kitchen [--yes] [--dry-run] [--verbose] [--skip <piece>,...]`: the one command.
+ * It looks at each piece (the issue flow, claude-cloud, claude-repo-guard, the skills) with
+ * every lookup at once, shows what the repo has, and offers the steps that install what is
+ * missing or update what is behind. In a terminal it asks first, all in one go: everything
+ * suggested, or pick the steps and the skills; whether to replace the repo's own skills.
+ * While the person answers, the tools download. Then the steps run in order (the flow
+ * first, the skills last, since they follow the flow's version), one line each, with the
+ * tools' output only when one fails; one that fails does not stop the rest. With `--yes`
+ * it does what is suggested without asking (and keeps the repo's own skills); without a
+ * terminal it only shows the steps.
  */
-import { askSteps } from "../menu.js";
+import { spinner } from "@clack/prompts";
+import { askPath, askReplace, askSkills, askSteps } from "../menu.js";
 import { KitError, type Output, UsageError, warn } from "../output.js";
-import type { PieceStatus, Step } from "../piece.js";
+import type { Context, PieceStatus, Step } from "../piece.js";
 import { cloudStatus, NAME as CLOUD } from "../pieces/cloud.js";
 import { guardStatus, NAME as GUARD } from "../pieces/guard.js";
 import { issueFlowStatus, NAME as FLOW } from "../pieces/issue-flow.js";
-import { NAME as SKILLS, skillsStatus } from "../pieces/skills.js";
+import { keepOwn, NAME as SKILLS, ownInPick, skillsStatus } from "../pieces/skills.js";
 import { mainCheckout, packageManager } from "../repo.js";
+import { download, failedOutput, setVerbose } from "../tools.js";
 
 /** Options of the command. */
 export interface SyncOptions {
   cwd: string;
   yes: boolean;
   dryRun: boolean;
+  verbose: boolean;
   skip: string[];
 }
 
-/** What a piece's status gets: the repo, and the statuses of the pieces before it. */
-type StatusOf = (root: string, before: PieceStatus[]) => PieceStatus;
-
 /** Every piece, in the order its steps run. */
-const PIECES: { name: string; status: StatusOf }[] = [
-  { name: FLOW, status: issueFlowStatus },
-  { name: CLOUD, status: cloudStatus },
-  { name: GUARD, status: (root, before) => guardStatus(root, before.some((status) => status.name === FLOW && !status.installed && status.steps.length > 0)) },
-  { name: SKILLS, status: skillsStatus },
-];
+const PIECES = [FLOW, CLOUD, GUARD, SKILLS];
+
+/** How a step's progress is shown: a spinner in a terminal, plain lines otherwise. */
+interface Progress {
+  start: (text: string) => void;
+  stop: (text: string, ok: boolean) => void;
+}
 
 /**
  * The names `--skip` takes.
@@ -41,7 +45,23 @@ const PIECES: { name: string; status: StatusOf }[] = [
  * @example pieceNames() // ["issue-flow", "claude-cloud", "claude-repo-guard", "skills"]
  */
 export function pieceNames(): string[] {
-  return PIECES.map((piece) => piece.name);
+  return [...PIECES];
+}
+
+/**
+ * Each piece's status, with every lookup at once. The guard's step depends on whether the
+ * flow is about to be installed, so it waits for the flow's status.
+ * @param root - The repo.
+ * @param skip - The pieces left out.
+ * @returns The statuses, in the pieces' order.
+ */
+async function statusesOf(root: string, skip: string[]): Promise<PieceStatus[]> {
+  const flow = skip.includes(FLOW) ? null : issueFlowStatus(root);
+  const cloud = skip.includes(CLOUD) ? null : cloudStatus(root);
+  const skills = skip.includes(SKILLS) ? null : skillsStatus(root, !skip.includes(FLOW));
+  const guard = skip.includes(GUARD) ? null : (flow ?? Promise.resolve(null)).then((status) => guardStatus(root, status !== null && !status.installed && status.steps.length > 0));
+  const all = await Promise.all([flow, cloud, guard, skills]);
+  return all.flatMap((status) => status ?? []);
 }
 
 /**
@@ -51,26 +71,128 @@ export function pieceNames(): string[] {
  */
 function printStatus(statuses: PieceStatus[], out: Output): void {
   const width = Math.max(...statuses.map((status) => status.name.length));
-  out.stdout("This repo has:\n");
-  for (const status of statuses) out.stdout(`  ${status.name.padEnd(width)}  ${status.state}  · ${status.summary}\n`);
+  const stateWidth = Math.max(...statuses.map((status) => status.state.length));
+  out.stdout("\nEste repo tiene:\n");
+  for (const status of statuses) out.stdout(`  ${status.name.padEnd(width)}  ${status.state.padEnd(stateWidth)}  · ${status.summary}\n`);
+  out.stdout("\n");
 }
 
 /**
- * The steps to run: the ticked ones with `--yes`, the picked ones in a terminal, or none.
+ * Leaves the repo's own skills out of a step's pick, saying so.
+ * @param root - The repo.
+ * @param step - A step that installs skills.
+ * @param out - Where to write.
+ */
+function keepOwnSkills(root: string, step: Step, out: Output): void {
+  if (step.skills === undefined) return;
+  const own = ownInPick(root, step.skills);
+  if (own.length === 0) return;
+  Object.assign(step.skills, keepOwn(step.skills, own));
+  out.stdout(`Se dejan fuera las skills que el repo ya tiene como propias: ${own.join(", ")}. Para reemplazarlas, corre agent-kitchen en una terminal.\n`);
+}
+
+/**
+ * Asks, for a step that installs skills, which ones, and whether to replace the repo's own.
+ * @param root - The repo.
+ * @param step - The step.
+ * @param chooseSkills - Whether to show the skills menu, or keep the step's pick.
+ * @returns False if the person cancelled.
+ */
+async function askAboutSkills(root: string, step: Step, chooseSkills: boolean): Promise<boolean> {
+  const pick = step.skills;
+  if (pick === undefined) return true;
+  if (chooseSkills) {
+    const picked = await askSkills(pick.candidates, pick.picked.length > 0 ? pick.picked : pick.candidates.map((candidate) => candidate.id));
+    if (picked === null) return false;
+    pick.picked = picked;
+  }
+  const own = ownInPick(root, pick);
+  if (own.length === 0) return true;
+  if (await askReplace(own)) pick.replace = own;
+  else Object.assign(pick, keepOwn(pick, own));
+  return true;
+}
+
+/**
+ * The steps to run: the suggested ones with `--yes`, what the person picks in a terminal,
+ * or none (only shown) with `--dry-run` or without a terminal.
+ * @param root - The repo.
  * @param steps - The steps offered.
  * @param options - The options.
  * @param out - Where to write.
  * @returns The steps, or null if nothing should run.
  */
-async function chooseSteps(steps: Step[], options: SyncOptions, out: Output): Promise<Step[] | null> {
-  if (options.yes) return steps.filter((step) => step.checked);
+async function chooseSteps(root: string, steps: Step[], options: SyncOptions, out: Output): Promise<Step[] | null> {
+  const suggested = steps.filter((step) => step.checked);
+  if (options.yes) {
+    if (suggested.length === 0) out.stdout(`Todo al día. Opcional, para elegir en una terminal: ${steps.map((step) => step.label).join("; ")}.\n`);
+    for (const step of suggested) keepOwnSkills(root, step, out);
+    return suggested;
+  }
   if (options.dryRun || !out.interactive) {
-    out.stdout(`It would offer${options.dryRun ? "" : " (run it in a terminal to pick, or with --yes)"}:\n${steps.map((step) => `  [${step.checked ? "x" : " "}] ${step.label}\n`).join("")}`);
+    const hint = options.dryRun ? "" : " (para hacerlos, corre agent-kitchen en una terminal, o con --yes)";
+    out.stdout(`Pasos sugeridos${hint}:\n${steps.map((step) => `  [${step.checked ? "x" : " "}] ${step.label}\n`).join("")}`);
     return null;
   }
-  const picked = await askSteps(steps);
-  if (picked === null) warn(out, "cancelled; nothing changed.");
-  return picked;
+  for (const step of suggested) for (const spec of step.downloads) void download(root, spec);
+  const path = await askPath(suggested.length);
+  if (path === "leave") return null;
+  const chosen = path === "all" ? suggested : await askSteps(steps);
+  if (chosen === null) return null;
+  for (const step of chosen) {
+    if (!(await askAboutSkills(root, step, path === "pick"))) return null;
+  }
+  return chosen;
+}
+
+/**
+ * How progress is shown: a spinner in a terminal (unless the tools print with
+ * `--verbose`), plain lines otherwise. Only for the steps, after every question: a spinner
+ * shown before a question leaves the second question deaf to the keyboard (@clack/prompts
+ * 1.8.1).
+ * @param out - Where to write.
+ * @param verbose - Whether the tools print on the terminal.
+ * @returns The progress.
+ */
+function progressFor(out: Output, verbose: boolean): Progress {
+  if (out.interactive && !verbose) {
+    const spin = spinner();
+    return { start: (text) => spin.start(text), stop: (text, ok) => (ok ? spin.stop(text) : spin.error(text)) };
+  }
+  return { start: (text) => out.stdout(`→ ${text}\n`), stop: (text, ok) => out.stdout(`${ok ? "✓" : "✗"} ${text}\n`) };
+}
+
+/**
+ * Runs one step and shows how it went: its notes, and what to do if it failed.
+ * @param root - The repo.
+ * @param step - The step.
+ * @param progress - How progress is shown.
+ * @param out - Where to write.
+ * @returns Whether it worked.
+ * @throws What the step throws that is not a KitError.
+ */
+async function runStep(root: string, step: Step, progress: Progress, out: Output): Promise<boolean> {
+  const notes: string[] = [];
+  const failures: string[] = [];
+  const context: Context = {
+    root,
+    note: (text) => notes.push(text),
+    fail: (text, output) => failures.push(`  ${text}\n${output === undefined ? "" : failedOutput(output)}`),
+  };
+  progress.start(step.label);
+  await Promise.all(step.downloads.map((spec) => download(root, spec)));
+  let ok: boolean;
+  try {
+    ok = await step.run(context);
+  } catch (error) {
+    if (!(error instanceof KitError)) throw error;
+    failures.push(`  ${error.message}\n`);
+    ok = false;
+  }
+  progress.stop(step.label, ok);
+  for (const note of notes) out.stdout(`  · ${note}\n`);
+  for (const failure of failures) out.stderr(failure);
+  return ok;
 }
 
 /**
@@ -79,40 +201,37 @@ async function chooseSteps(steps: Step[], options: SyncOptions, out: Output): Pr
  * @param out - Where to write and ask.
  * @returns 0, or 1 if a step failed or the person cancelled.
  * @throws KitError outside the main checkout or with a broken file; UsageError for an unknown piece.
- * @example await sync({ cwd, yes: false, dryRun: true, skip: [] }, out)
+ * @example await sync({ cwd, yes: false, dryRun: true, verbose: false, skip: [] }, out)
  */
 export async function sync(options: SyncOptions, out: Output): Promise<number> {
   const unknown = options.skip.find((name) => !pieceNames().includes(name));
-  if (unknown !== undefined) throw new UsageError(`unknown piece ${unknown}; there are ${pieceNames().join(", ")}.`);
-  if (options.yes && options.dryRun) throw new UsageError("use --yes or --dry-run, not both.");
+  if (unknown !== undefined) throw new UsageError(`no existe la pieza ${unknown}; son ${pieceNames().join(", ")}.`);
+  if (options.yes && options.dryRun) throw new UsageError("usa --yes o --dry-run, no los dos.");
   const root = mainCheckout(options.cwd, "agent-kitchen");
-  const statuses: PieceStatus[] = [];
-  for (const piece of PIECES.filter((item) => !options.skip.includes(item.name))) statuses.push(piece.status(root, statuses));
+  setVerbose(options.verbose);
+  if (out.interactive) out.stdout("Revisando el repo y las últimas versiones…\n");
+  const statuses = await statusesOf(root, options.skip);
   printStatus(statuses, out);
   const steps = statuses.flatMap((status) => status.steps);
   if (steps.length === 0) {
-    out.stdout("Nothing to install or update.\n");
+    out.stdout("Todo al día: no hay nada que instalar ni actualizar.\n");
     return 0;
   }
-  const chosen = await chooseSteps(steps, options, out);
-  if (chosen === null) return options.dryRun || !out.interactive ? 0 : 1;
+  const chosen = await chooseSteps(root, steps, options, out);
+  if (chosen === null) {
+    if (!options.dryRun && out.interactive) warn(out, "no se cambió nada.");
+    return options.dryRun || !out.interactive ? 0 : 1;
+  }
   if (chosen.length === 0) {
-    out.stdout("Nothing picked; nothing changed.\n");
+    if (!options.yes) out.stdout("No elegiste nada; no se cambió nada.\n");
     return 0;
   }
+  const progress = progressFor(out, options.verbose);
   const failed: string[] = [];
   for (const step of chosen) {
-    out.stdout(`\n→ ${step.label}\n`);
-    let ok: boolean;
-    try {
-      ok = step.run({ root, yes: options.yes || !out.interactive, out });
-    } catch (error) {
-      if (!(error instanceof KitError)) throw error;
-      warn(out, error.message);
-      ok = false;
-    }
-    if (!ok) failed.push(step.label);
+    if (!(await runStep(root, step, progress, out))) failed.push(step.label);
   }
-  out.stdout(`\n${failed.length === 0 ? "Done." : `Done, but these failed: ${failed.join("; ")}.`} Next: run '${packageManager(root)} install', review the diff and commit it.\n`);
+  const next = `Falta: corre '${packageManager(root)} install', revisa el diff y haz commit.`;
+  out.stdout(`\n${failed.length === 0 ? "Listo." : `Terminó, pero fallaron: ${failed.join("; ")}.`} ${next}\n`);
   return failed.length === 0 ? 0 : 1;
 }
