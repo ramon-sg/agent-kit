@@ -34,6 +34,7 @@ export interface Candidate {
   catalog: string;
   description: string;
   skills: string[];
+  requires: string[];
 }
 
 /** The skills a step installs: what it offers, and what the person picked and lets it replace. */

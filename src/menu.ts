@@ -98,14 +98,14 @@ export async function askSkills(candidates: Candidate[], ticked: string[]): Prom
 /**
  * Asks whether the catalog's skills replace the repo's own ones with the same name.
  * @param own - Their names.
- * @returns True to replace them; false (also on cancel) to keep them.
+ * @returns True to replace them, false to keep them, or null if the person cancelled.
  * @example await askReplace(["planning"])
  */
-export async function askReplace(own: string[]): Promise<boolean> {
+export async function askReplace(own: string[]): Promise<boolean | null> {
   const answer = await confirm({
     message: `El repo ya tiene su propia versión de: ${own.join(", ")}. ¿Las reemplazo por las del catálogo? Su project.md se conserva.`,
     active: "Sí, reemplazar",
     inactive: "No, dejarlas fuera",
   });
-  return answer === true;
+  return isCancel(answer) ? null : answer;
 }

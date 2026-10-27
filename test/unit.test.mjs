@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { menuOptions, skillOptions } from "../dist/menu.js";
-import { keepOwn } from "../dist/pieces/skills.js";
+import { keepOwn, skillsOf } from "../dist/pieces/skills.js";
 import { compareVersions } from "../dist/tools.js";
 
 test("versions compare by number, not as text", () => {
@@ -25,16 +25,18 @@ test("the menu starts with the suggested steps ticked, in the steps' order", () 
   assert.deepEqual(options.map((option) => option.label), ["a", "b", "c"]);
 });
 
-test("keeping an own skill also drops the skills that require it", () => {
+test("keeping an own skill also drops the skills that require it, all the way down", () => {
   const candidates = [
-    { id: "a/close-pr", name: "close-pr", catalog: "a", description: "", skills: ["close-pr", "pr-review-comments"] },
-    { id: "a/pr-review-comments", name: "pr-review-comments", catalog: "a", description: "", skills: ["pr-review-comments"] },
-    { id: "a/planning", name: "planning", catalog: "a", description: "", skills: ["planning"] },
+    { id: "a/close-pr", name: "close-pr", catalog: "a", description: "", skills: ["close-pr"], requires: ["pr-review-comments"] },
+    { id: "a/pr-review-comments", name: "pr-review-comments", catalog: "a", description: "", skills: ["pr-review-comments"], requires: ["github-issues"] },
+    { id: "a/github-issues", name: "github-issues", catalog: "a", description: "", skills: ["github-issues"], requires: [] },
+    { id: "a/planning", name: "planning", catalog: "a", description: "", skills: ["planning"], requires: [] },
   ];
-  const pick = { candidates, picked: candidates.map((candidate) => candidate.id), replace: ["pr-review-comments"] };
+  const pick = { candidates, picked: candidates.map((candidate) => candidate.id), replace: ["github-issues"] };
 
-  const kept = keepOwn(pick, ["pr-review-comments"]);
+  const kept = keepOwn(pick, ["github-issues"]);
 
+  assert.deepEqual(skillsOf(candidates, ["a/close-pr"]).sort(), ["close-pr", "github-issues", "pr-review-comments"]);
   assert.deepEqual(kept.picked, ["a/planning"]);
   assert.deepEqual(kept.replace, []);
 });
@@ -43,8 +45,8 @@ test("the skills menu groups by catalog and cuts long descriptions", () => {
   const long = "x".repeat(100);
 
   const groups = skillOptions([
-    { id: "a/one", name: "one", catalog: "a", description: long, skills: ["one"] },
-    { id: "b/two", name: "two", catalog: "b", description: "corta", skills: ["two"] },
+    { id: "a/one", name: "one", catalog: "a", description: long, skills: ["one"], requires: [] },
+    { id: "b/two", name: "two", catalog: "b", description: "corta", skills: ["two"], requires: [] },
   ]);
 
   assert.deepEqual(Object.keys(groups), ["a", "b"]);

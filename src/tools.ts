@@ -191,10 +191,11 @@ export function failedOutput(output: string): string {
  * Runs `npx --yes <args>` in the repo and returns what it printed on stdout.
  * @param root - The repo.
  * @param args - The package and its arguments.
+ * @param lookup - True to give up after the lookups' time limit, for a read that only informs.
  * @returns Its stdout and exit code, or null if npx could not start.
  * @example await captureNpx(root, ["@ramon-sg/issue-flow@0.2.0", "doctor", "--json"])
  */
-export async function captureNpx(root: string, args: string[]): Promise<{ out: string; status: number | null } | null> {
-  const result = await run("npx", ["--yes", ...args], { cwd: root });
+export async function captureNpx(root: string, args: string[], lookup = false): Promise<{ out: string; status: number | null } | null> {
+  const result = await run("npx", ["--yes", ...args], { cwd: root, ...(lookup ? { timeout: LOOKUP_TIMEOUT_MS } : {}) });
   return result.status === null && result.out === "" ? null : { out: result.out, status: result.status };
 }

@@ -108,7 +108,9 @@ async function askAboutSkills(root: string, step: Step, chooseSkills: boolean): 
   }
   const own = ownInPick(root, pick);
   if (own.length === 0) return true;
-  if (await askReplace(own)) pick.replace = own;
+  const replace = await askReplace(own);
+  if (replace === null) return false;
+  if (replace) pick.replace = own;
   else Object.assign(pick, keepOwn(pick, own));
   return true;
 }
@@ -120,9 +122,9 @@ async function askAboutSkills(root: string, step: Step, chooseSkills: boolean): 
  * @param steps - The steps offered.
  * @param options - The options.
  * @param out - Where to write.
- * @returns The steps, or null if nothing should run.
+ * @returns The steps, "leave" if the person chose to leave, or null if nothing should run (only shown, or cancelled).
  */
-async function chooseSteps(root: string, steps: Step[], options: SyncOptions, out: Output): Promise<Step[] | null> {
+async function chooseSteps(root: string, steps: Step[], options: SyncOptions, out: Output): Promise<Step[] | "leave" | null> {
   const suggested = steps.filter((step) => step.checked);
   if (options.yes) {
     if (suggested.length === 0) out.stdout(`Todo al día. Opcional, para elegir en una terminal: ${steps.map((step) => step.label).join("; ")}.\n`);
@@ -136,7 +138,7 @@ async function chooseSteps(root: string, steps: Step[], options: SyncOptions, ou
   }
   for (const step of suggested) for (const spec of step.downloads) void download(root, spec);
   const path = await askPath(suggested.length);
-  if (path === "leave") return null;
+  if (path === "leave") return "leave";
   const chosen = path === "all" ? suggested : await askSteps(steps);
   if (chosen === null) return null;
   for (const step of chosen) {
@@ -218,6 +220,10 @@ export async function sync(options: SyncOptions, out: Output): Promise<number> {
     return 0;
   }
   const chosen = await chooseSteps(root, steps, options, out);
+  if (chosen === "leave") {
+    out.stdout("No se cambió nada.\n");
+    return 0;
+  }
   if (chosen === null) {
     if (!options.dryRun && out.interactive) warn(out, "no se cambió nada.");
     return options.dryRun || !out.interactive ? 0 : 1;

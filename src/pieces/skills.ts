@@ -52,8 +52,39 @@ function toCandidate(value: unknown): Candidate | null {
     name: value.name,
     catalog: typeof value.catalog === "string" ? value.catalog : "",
     description: typeof value.description === "string" ? value.description : "",
-    skills: [...names(value.skills), ...names(value.requires)],
+    skills: names(value.skills),
+    requires: names(value.requires),
   };
+}
+
+/**
+ * Every skill some candidates bring: their own and what they require, all the way down,
+ * as `skills-manager` follows it.
+ * @param candidates - Every candidate offered.
+ * @param ids - The candidates picked.
+ * @returns The skills' names.
+ * @example skillsOf(candidates, ["catalog:ramon-sg/issue-flow/close-pr"]) // ["close-pr", "pr-review-comments", "github-issues"]
+ */
+export function skillsOf(candidates: Candidate[], ids: string[]): string[] {
+  const byName = new Map(candidates.map((candidate) => [candidate.name, candidate]));
+  const found = new Set<string>();
+  const pending = candidates.filter((candidate) => ids.includes(candidate.id)).flatMap((candidate) => [...candidate.skills, ...candidate.requires]);
+  while (pending.length > 0) {
+    const name = pending.pop();
+    if (name === undefined || found.has(name)) continue;
+    found.add(name);
+    pending.push(...(byName.get(name)?.requires ?? []));
+  }
+  return [...found];
+}
+
+/**
+ * The catalog of a candidate's id (`catalog:<owner>/<repo>/<name>`).
+ * @param id - The id.
+ * @returns The catalog, as owner/repo.
+ */
+function catalogOf(id: string): string {
+  return id.replace(/^catalog:/, "").split("/").slice(0, 2).join("/");
 }
 
 /**
@@ -64,7 +95,7 @@ function toCandidate(value: unknown): Candidate | null {
  */
 async function readCandidates(root: string, flow: string | null): Promise<Candidate[] | null> {
   const command = readJson(root, SKILLS_MANIFEST) === null ? "init" : "add";
-  const result = await captureNpx(root, [skillsManagerSpec(root), command, "--candidates", ...catalogArgs(flow)]);
+  const result = await captureNpx(root, [skillsManagerSpec(root), command, "--candidates", ...catalogArgs(flow)], true);
   let found: unknown;
   try {
     found = JSON.parse(result?.out ?? "");
@@ -83,8 +114,7 @@ async function readCandidates(root: string, flow: string | null): Promise<Candid
  * @example ownInPick(root, step.skills) // ["planning"]
  */
 export function ownInPick(root: string, pick: SkillPick): string[] {
-  const names = pick.candidates.filter((candidate) => pick.picked.includes(candidate.id)).flatMap((candidate) => candidate.skills);
-  return ownSkills(root, names);
+  return ownSkills(root, skillsOf(pick.candidates, pick.picked));
 }
 
 /**
@@ -96,8 +126,8 @@ export function ownInPick(root: string, pick: SkillPick): string[] {
  * @example keepOwn(pick, ["planning"]).picked
  */
 export function keepOwn(pick: SkillPick, own: string[]): SkillPick {
-  const clashing = new Set(pick.candidates.filter((candidate) => candidate.skills.some((name) => own.includes(name))).map((candidate) => candidate.id));
-  return { ...pick, picked: pick.picked.filter((id) => !clashing.has(id)), replace: [] };
+  const picked = pick.picked.filter((id) => !skillsOf(pick.candidates, [id]).some((name) => own.includes(name)));
+  return { ...pick, picked, replace: [] };
 }
 
 /**
@@ -107,20 +137,23 @@ export function keepOwn(pick: SkillPick, own: string[]): SkillPick {
  * @returns Whether `skills-manager` worked, or true if nothing was picked.
  */
 async function install(context: Context, pick: SkillPick): Promise<boolean> {
-  if (pick.picked.length === 0) {
-    context.note("ninguna skill elegida");
+  const flow = flowVersion(context.root);
+  const picked = flow === null ? pick.picked.filter((id) => catalogOf(id) !== FLOW_CATALOG) : pick.picked;
+  if (picked.length < pick.picked.length) context.note("sin las skills del flujo, porque issue-flow no está instalado");
+  if (picked.length === 0) {
+    context.note("ninguna skill que instalar");
     return true;
   }
   const spec = skillsManagerSpec(context.root);
   const command = readJson(context.root, SKILLS_MANIFEST) === null ? "init" : "add";
-  const args = [spec, command, ...catalogArgs(flowVersion(context.root)), "--select", pick.picked.join(","), ...(pick.replace.length === 0 ? [] : ["--replace", pick.replace.join(",")])];
+  const args = [spec, command, ...catalogArgs(flow), "--select", picked.join(","), ...(pick.replace.length === 0 ? [] : ["--replace", pick.replace.join(",")])];
   const run = await runNpx(context.root, args);
   if (!run.ok) {
     context.fail(`skills-manager no instaló las skills; corre 'npx ${args.join(" ")}'.`, run.output);
     return false;
   }
-  const names = pick.candidates.filter((candidate) => pick.picked.includes(candidate.id)).map((candidate) => candidate.name);
-  context.note(names.length === 0 ? `${pick.picked.length} skills` : names.join(", "));
+  const names = pick.candidates.filter((candidate) => picked.includes(candidate.id)).map((candidate) => candidate.name);
+  context.note(names.length === 0 ? `${picked.length} skills` : names.join(", "));
   if (pick.replace.length > 0) context.note(`reemplazadas (con su project.md): ${pick.replace.join(", ")}`);
   return true;
 }
@@ -175,25 +208,34 @@ async function offeredFlow(root: string, withFlow: boolean): Promise<string | nu
  */
 export async function skillsStatus(root: string, withFlow: boolean): Promise<PieceStatus> {
   const summary = "skills del flujo, planes y auditorías";
-  const candidatesRead = readCandidates(root, await offeredFlow(root, withFlow));
+  const flow = await offeredFlow(root, withFlow);
+  const candidatesRead = readCandidates(root, flow);
   if (readJson(root, SKILLS_MANIFEST) === null) {
     const candidates = await candidatesRead;
-    const offered = candidates ?? DEFAULT_SKILLS.map((id) => ({ id, name: id.split("/").at(-1) ?? id, catalog: "", description: "", skills: [id.split("/").at(-1) ?? id] }));
-    const label = `Instalar ${offered.length} skills de ${[FLOW_CATALOG, ...GENERAL_CATALOGS].join(" y ")}`;
+    const fallback = DEFAULT_SKILLS.filter((id) => flow !== null || catalogOf(id) !== FLOW_CATALOG).map((id) => {
+      const name = id.split("/").at(-1) ?? id;
+      return { id, name, catalog: catalogOf(id), description: "", skills: [name], requires: [] };
+    });
+    const offered = candidates ?? fallback;
+    const catalogs = [...new Set(offered.map((candidate) => candidate.catalog))];
+    const label = `Instalar ${offered.length} skills de ${catalogs.join(" y ")}`;
     const skills = { candidates: offered, picked: offered.map((candidate) => candidate.id), replace: [] };
-    return { name: NAME, summary, installed: false, state: "no instaladas", steps: [{ piece: NAME, checked: true, downloads: [skillsManagerSpec(root)], label, skills, run: (context) => install(context, skills) }] };
+    const state = candidates === null ? "no instaladas (no se pudieron leer los catálogos)" : "no instaladas";
+    return { name: NAME, summary, installed: false, state, steps: [{ piece: NAME, checked: true, downloads: [], label, skills, run: (context) => install(context, skills) }] };
   }
   const general = manifestCatalogs(root).filter((source) => source.catalog !== FLOW_CATALOG);
   const steps = (await Promise.all(general.map((source) => updateStep(root, source.catalog, source.ref)))).flatMap((step) => step ?? []);
   const locked = lockedSkills(root);
-  const fresh = ((await candidatesRead) ?? []).filter((candidate) => locked[candidate.name] === undefined);
+  const candidates = await candidatesRead;
+  const fresh = (candidates ?? []).filter((candidate) => locked[candidate.name] === undefined);
   if (fresh.length > 0) {
     const skills: SkillPick = { candidates: fresh, picked: [], replace: [] };
     steps.push({ piece: NAME, checked: false, downloads: [skillsManagerSpec(root)], label: `Agregar skills nuevas (${fresh.length}): ${fresh.map((candidate) => candidate.name).join(", ")}`, skills, run: (context) => install(context, skills) });
   }
   const count = manifestCatalogs(root).reduce((total, source) => total + catalogSkills(root, source.catalog).length, 0);
   const behind = steps.filter((step) => step.checked).length;
-  return { name: NAME, summary, installed: true, state: `${count} instaladas${behind > 0 ? ", algunas atrasadas" : ", al día"}`, steps };
+  const unread = candidates === null ? " (no se pudieron leer los catálogos)" : "";
+  return { name: NAME, summary, installed: true, state: `${count} instaladas${behind > 0 ? ", algunas atrasadas" : ", al día"}${unread}`, steps };
 }
 
 /**
