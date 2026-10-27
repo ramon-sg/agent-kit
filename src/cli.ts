@@ -11,7 +11,10 @@ import { parseArgs } from "node:util";
 import { doctor } from "./commands/doctor.js";
 import { pieceNames, sync } from "./commands/sync.js";
 import { KitError, processOutput, UsageError } from "./output.js";
-import { compareVersions, isRelease, npmLatest } from "./tools.js";
+import { FLOW_PACKAGE, GENERAL_CATALOGS } from "./piece.js";
+import { PACKAGE as CLOUD_PACKAGE } from "./pieces/cloud.js";
+import { REPO as GUARD_REPO } from "./pieces/guard.js";
+import { compareVersions, isRelease, latestTag, npmLatest } from "./tools.js";
 
 /** This package on npm. */
 const PACKAGE = "agent-kitchen";
@@ -20,17 +23,18 @@ const PACKAGE = "agent-kitchen";
 const HANDED_OVER = "AGENT_KITCHEN_HANDED_OVER";
 
 /** Usage text. */
-const USAGE = `Usage:
-  agent-kitchen [--yes | --dry-run] [--skip <piece>,...]
+const USAGE = `Uso:
+  agent-kitchen [--yes | --dry-run] [--verbose] [--skip <pieza>,...]
   agent-kitchen doctor
 
-agent-kitchen looks at each piece of the repo's agent tooling (${pieceNames().join(", ")}),
-shows what the repo has and the latest of each, and offers to install what is missing and
-update what is behind: in a terminal, a menu where you untick what you do not want. --yes
-runs what it suggests without asking; without a terminal it only shows it. Run it in the
-main checkout, from your terminal.
+agent-kitchen revisa cada pieza de las herramientas de agentes del repo (${pieceNames().join(", ")}),
+muestra qué tiene el repo y la última versión de cada una, y ofrece instalar lo que falta y
+actualizar lo que está atrasado. En una terminal pregunta una vez: hacer todo lo sugerido,
+o elegir los pasos y las skills. --yes hace lo sugerido sin preguntar; sin terminal solo lo
+muestra. --verbose muestra la salida de cada herramienta. Córrelo en la copia principal del
+repo, desde tu terminal.
 
-doctor runs each piece's own checks at the repo's version, and changes nothing.`;
+doctor corre las revisiones de cada pieza en la versión del repo, sin cambiar nada.`;
 
 /**
  * This package's version.
@@ -42,16 +46,26 @@ function ownVersion(): string {
 }
 
 /**
+ * Starts the lookups of the latest versions, so they run while this one checks its own.
+ */
+function startLookups(): void {
+  void npmLatest(FLOW_PACKAGE);
+  void npmLatest(CLOUD_PACKAGE);
+  void latestTag(GUARD_REPO);
+  for (const catalog of GENERAL_CATALOGS) void latestTag(catalog);
+}
+
+/**
  * Runs the latest agent-kitchen with the same arguments, if npm has one newer than this.
  * @param argv - The arguments.
  * @returns Its exit code, or null if this one is the latest or npm cannot tell.
  */
-function handOver(argv: string[]): number | null {
+async function handOver(argv: string[]): Promise<number | null> {
   const own = ownVersion();
   if (process.env[HANDED_OVER] !== undefined || !isRelease(own)) return null;
-  const latest = npmLatest(PACKAGE);
+  const latest = await npmLatest(PACKAGE);
   if (latest === null || compareVersions(latest, own) <= 0) return null;
-  process.stderr.write(`agent-kitchen: running ${latest}, the latest (this is ${own}).\n`);
+  process.stderr.write(`agent-kitchen: uso ${latest}, la última (esta es ${own}).\n`);
   const result = spawnSync("npx", ["--yes", `${PACKAGE}@${latest}`, ...argv], { stdio: "inherit", env: { ...process.env, [HANDED_OVER]: own } });
   return result.status ?? 1;
 }
@@ -67,7 +81,7 @@ async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
-    options: { yes: { type: "boolean" }, "dry-run": { type: "boolean" }, skip: { type: "string" }, help: { type: "boolean", short: "h" }, version: { type: "boolean" } },
+    options: { yes: { type: "boolean" }, "dry-run": { type: "boolean" }, verbose: { type: "boolean", short: "v" }, skip: { type: "string" }, help: { type: "boolean", short: "h" }, version: { type: "boolean" } },
   });
   if (values.help === true) {
     out.stdout(`${USAGE}\n`);
@@ -77,16 +91,17 @@ async function main(argv: string[]): Promise<number> {
     out.stdout(`${ownVersion()}\n`);
     return 0;
   }
-  const handed = handOver(argv);
+  startLookups();
+  const handed = await handOver(argv);
   if (handed !== null) return handed;
   const [command, ...rest] = positionals;
-  if (rest.length > 0 || (command !== undefined && command !== "doctor")) throw new UsageError(`unknown command ${positionals.join(" ")}.`);
+  if (rest.length > 0 || (command !== undefined && command !== "doctor")) throw new UsageError(`no existe el comando ${positionals.join(" ")}.`);
   if (command === "doctor") {
-    if (values.yes !== undefined || values["dry-run"] !== undefined || values.skip !== undefined) throw new UsageError("doctor takes no flags.");
+    if (values.yes !== undefined || values["dry-run"] !== undefined || values.skip !== undefined || values.verbose !== undefined) throw new UsageError("doctor no lleva opciones.");
     return doctor(process.cwd(), out);
   }
   const skip = (values.skip ?? "").split(",").map((name) => name.trim()).filter((name) => name !== "");
-  return sync({ cwd: process.cwd(), yes: values.yes ?? false, dryRun: values["dry-run"] ?? false, skip }, out);
+  return sync({ cwd: process.cwd(), yes: values.yes ?? false, dryRun: values["dry-run"] ?? false, verbose: values.verbose ?? false, skip }, out);
 }
 
 try {

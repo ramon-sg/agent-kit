@@ -9,7 +9,9 @@
 //  - skills-manager add --candidates prints FAKE_CANDIDATES; init writes a manifest; check
 //    fails with FAKE_CHECK_FAIL; update takes one name, like the real one (which ignores the
 //    rest), and moves that skill in the lock to its catalog's ref, or to FAKE_UPDATE_TAG.
-// Any npx call whose arguments contain FAKE_FAIL exits 1.
+// Any npx call whose arguments contain FAKE_FAIL exits 1, saying so on stderr. A download
+// ahead of a step (`npx --package <spec>`) does nothing. Every other npx call prints
+// FAKE_SAY, if set, as a tool's own output would be.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -35,7 +37,12 @@ if (program === "npm") {
 }
 
 const [, spec, command, ...rest] = args;
-if (process.env.FAKE_FAIL && args.join(" ").includes(process.env.FAKE_FAIL)) process.exit(1);
+if (spec === "--package") process.exit(0);
+if (process.env.FAKE_FAIL && args.join(" ").includes(process.env.FAKE_FAIL)) {
+  process.stderr.write(`fake: ${process.env.FAKE_FAIL} failed\n`);
+  process.exit(1);
+}
+if (process.env.FAKE_SAY && !rest.includes("--candidates") && !rest.includes("--json")) process.stderr.write(`${process.env.FAKE_SAY}\n`);
 const cwd = process.cwd();
 
 if (spec.startsWith("@ramon-sg/issue-flow@")) {

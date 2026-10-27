@@ -21,11 +21,11 @@ const MARKS: Record<Check["status"], string> = { ok: "✓", fail: "✗", info: "
  * @param out - Where to write.
  * @returns 0 if nothing failed, 1 if something did.
  * @throws KitError outside a checkout or with a broken file.
- * @example doctor(process.cwd(), out)
+ * @example await doctor(process.cwd(), out)
  */
-export function doctor(cwd: string, out: Output): number {
+export async function doctor(cwd: string, out: Output): Promise<number> {
   const root = mainCheckout(cwd, "agent-kitchen doctor");
-  const checks = [...issueFlowChecks(root), ...skillsChecks(root), ...cloudChecks(root), ...guardChecks(root)];
+  const checks = (await Promise.all([issueFlowChecks(root), skillsChecks(root), cloudChecks(root), guardChecks(root)])).flat();
   for (const check of checks) out.stdout(`${MARKS[check.status]} ${check.name}: ${check.detail}\n`);
   return checks.some((check) => check.status === "fail") ? 1 : 0;
 }

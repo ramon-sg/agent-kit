@@ -12,11 +12,11 @@ test("doctor passes on a repo with every piece, asking each tool at the repo's v
 
   assert.equal(r.status, 0, r.out);
   assert.doesNotMatch(r.out, /✗/);
-  assert.match(r.out, /✓ issue-flow: skills: 2 at v0\.2\.0/);
-  assert.deepEqual(repo.calls(), [
-    ["@ramon-sg/issue-flow@0.2.0", "doctor", "--json"],
-    ["@ramon-sg/skills-manager@1.1.0", "check"],
-    ["github:ramon-sg/claude-repo-guard#v0.2.0", "doctor", "--json"],
+  assert.match(r.out, /✓ issue-flow: skills: 2 en v0\.2\.0/);
+  assert.deepEqual(repo.calls().map((args) => args.join(" ")).sort(), [
+    "@ramon-sg/issue-flow@0.2.0 doctor --json",
+    "@ramon-sg/skills-manager@1.1.0 check",
+    "github:ramon-sg/claude-repo-guard#v0.2.0 doctor --json",
   ]);
 });
 
@@ -36,9 +36,9 @@ test("doctor names each problem, and only notes a newer release", () => {
 
   assert.equal(r.status, 1);
   assert.match(r.out, /✗ issue-flow: WorktreeRemove hook: not in \.claude\/settings\.json/);
-  assert.match(r.out, /✗ issue-flow: skills: close-pr at v0\.1\.0, the CLI is 0\.2\.0/);
-  assert.match(r.out, /✗ skills: disk, lock and manifest disagree/);
-  assert.match(r.out, /· claude-cloud: 1\.0\.0, 1\.1\.0 available/);
+  assert.match(r.out, /✗ issue-flow: skills: close-pr en v0\.1\.0; issue-flow está en 0\.2\.0/);
+  assert.match(r.out, /✗ skills: el disco, el lock y el manifiesto no coinciden/);
+  assert.match(r.out, /· claude-cloud: 1\.0\.0, hay 1\.1\.0/);
   assert.match(r.out, /✗ claude-repo-guard: sandbox: bubblewrap is missing/);
   assert.doesNotMatch(r.out, /claude-repo-guard: auto/);
   assert.equal(/✗ claude-repo-guard: weakerNetworkIsolation/.test(r.out), process.platform === "darwin");
@@ -60,6 +60,6 @@ test("doctor does not ask a flow that predates doctor --json, and says to update
   const r = repo.cli(["doctor"]);
 
   assert.equal(r.status, 0, r.out);
-  assert.match(r.out, /· issue-flow: 0\.1\.0 predates its doctor --json: run npx agent-kitchen/);
+  assert.match(r.out, /· issue-flow: 0\.1\.0 no tiene doctor --json: corre npx agent-kitchen/);
   assert.ok(repo.calls().every((args) => !args[0].startsWith("@ramon-sg/issue-flow")));
 });

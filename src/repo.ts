@@ -40,9 +40,9 @@ function git(cwd: string, args: string[]): string | null {
 export function mainCheckout(cwd: string, command: string): string {
   const common = git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   const top = git(cwd, ["rev-parse", "--show-toplevel"]);
-  if (common === null || top === null) throw new KitError(`run ${command} inside a checkout of the repo.`);
+  if (common === null || top === null) throw new KitError(`corre ${command} dentro del repo.`);
   const main = realpathSync(dirname(common));
-  if (realpathSync(top) !== main) throw new KitError(`run ${command} in the main checkout, ${main}, not in a worktree.`);
+  if (realpathSync(top) !== main) throw new KitError(`corre ${command} en la copia principal, ${main}, no en un worktree.`);
   return main;
 }
 
@@ -61,9 +61,9 @@ export function readJson(root: string, path: string): Record<string, unknown> | 
   try {
     value = JSON.parse(readFileSync(file, "utf8"));
   } catch (error) {
-    throw new KitError(`${path} is not valid JSON (${error instanceof Error ? error.message : String(error)}); fix it and run again.`);
+    throw new KitError(`${path} no es JSON válido (${error instanceof Error ? error.message : String(error)}); arréglalo y corre otra vez.`);
   }
-  if (!isObject(value)) throw new KitError(`${path} is not a JSON object; fix it and run again.`);
+  if (!isObject(value)) throw new KitError(`${path} no es un objeto JSON; arréglalo y corre otra vez.`);
   return value;
 }
 

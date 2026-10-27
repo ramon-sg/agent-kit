@@ -15,7 +15,18 @@ const GIT_ENV = { GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_N
 // The latest of everything on npm, unless a test says otherwise.
 export const NPM = { "@ramon-sg/issue-flow": "0.2.0", "@ramon-sg/claude-cloud": "1.1.0" };
 
+// What the catalogs offer (skills-manager --candidates), unless a test says otherwise.
+export const CANDIDATES = [
+  { id: "catalog:ramon-sg/issue-flow/github-issues", name: "github-issues", catalog: "ramon-sg/issue-flow", description: "Crea issues cortas", skills: ["github-issues"], requires: [] },
+  { id: "catalog:ramon-sg/issue-flow/close-pr", name: "close-pr", catalog: "ramon-sg/issue-flow", description: "Cierra un PR", skills: ["close-pr"], requires: ["pr-review-comments"] },
+  { id: "catalog:ramon-sg/issue-flow/pr-review-comments", name: "pr-review-comments", catalog: "ramon-sg/issue-flow", description: "Resuelve comentarios", skills: ["pr-review-comments"], requires: [] },
+  { id: "catalog:ramon-sg/agent-skills/planning", name: "planning", catalog: "ramon-sg/agent-skills", description: "Planes cortos", skills: ["planning"], requires: [] },
+];
+
 const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, ...GIT_ENV } }).trim();
+
+// The npx calls logged in a file, without `--yes`.
+const npxCalls = (log) => (existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((call) => call.program === "npx").map((call) => call.args.slice(1)) : []);
 
 // A repo for the tests. `tags` gives the release tags of each GitHub repo.
 export function makeRepo({ tags = { "ramon-sg/claude-repo-guard": ["0.1.0", "0.2.0"], "ramon-sg/agent-skills": ["0.1.0", "0.2.0"] } } = {}) {
@@ -43,6 +54,7 @@ export function makeRepo({ tags = { "ramon-sg/claude-repo-guard": ["0.1.0", "0.2
     PATH: `${bin}:${process.env.PATH}`,
     FAKE_LOG: log,
     FAKE_NPM: JSON.stringify(NPM),
+    FAKE_CANDIDATES: JSON.stringify(CANDIDATES),
     GIT_CONFIG_COUNT: "1",
     GIT_CONFIG_KEY_0: `url.${join(tmp, "github")}/.insteadOf`,
     GIT_CONFIG_VALUE_0: "https://github.com/",
@@ -58,8 +70,11 @@ export function makeRepo({ tags = { "ramon-sg/claude-repo-guard": ["0.1.0", "0.2
       const result = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8", env: env(extra) });
       return { status: result.status, out: result.stdout, err: result.stderr };
     },
-    // The npx calls of the last run, without `--yes`.
-    calls: () => (existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((call) => call.program === "npx").map((call) => call.args.slice(1)) : []),
+    // The npx calls of the last run, without `--yes`, nor the downloads ahead of a step
+    // (`--package`) nor the reads of what the catalogs offer (`--candidates`).
+    calls: () => npxCalls(log).filter((args) => args[0] !== "--package" && !args.includes("--candidates")),
+    // Every npx call of the last run, without `--yes`.
+    allCalls: () => npxCalls(log),
     read: (path) => JSON.parse(readFileSync(join(main, path), "utf8")),
     exists: (path) => existsSync(join(main, path)),
     write: (path, value) => {
