@@ -323,3 +323,45 @@ test("when npm has a newer agent-kitchen it runs that one with the same argument
   assert.equal(again.status, 0, again.err);
   assert.match(again.out, /Este repo tiene/);
 });
+
+test("the guard updates with apply from 0.5.0 on, as the issue's repro: 0.5.0 → 0.5.1", () => {
+  const repo = installedRepo({ guard: "0.5.0", tags: { "ramon-sg/claude-repo-guard": ["0.5.0", "0.5.1"], "ramon-sg/agent-skills": ["0.2.0"] } });
+
+  const r = repo.cli(["--yes", "--skip", "issue-flow,claude-cloud,skills"]);
+
+  assert.equal(r.status, 0, r.err);
+  assert.match(r.out, /Actualizar claude-repo-guard 0\.5\.0 → 0\.5\.1/);
+  assert.ok(repo.calls().some((args) => args.join(" ") === "github:ramon-sg/claude-repo-guard#v0.5.1 apply --yes"));
+  assert.equal(repo.read(".claude/repo-guard.manifest.json").version, "0.5.1");
+});
+
+test("a guard before 0.5.0 still gets its options with install, at its own version", () => {
+  const repo = installedRepo({ guard: "0.4.1", tags: { "ramon-sg/claude-repo-guard": ["0.4.1"], "ramon-sg/agent-skills": ["0.2.0"] } });
+  repo.write(".claude/repo-guard.config.json", {});
+
+  const r = repo.cli(["--yes", "--skip", "issue-flow,claude-cloud,skills"]);
+
+  assert.equal(r.status, 0, r.err);
+  assert.ok(repo.calls().some((args) => args.join(" ") === "github:ramon-sg/claude-repo-guard#v0.4.1 install --yes"));
+});
+
+test("when the guard fails, its own error is shown, without the sandbox hint", () => {
+  const repo = installedRepo({ guard: "0.5.0", tags: { "ramon-sg/claude-repo-guard": ["0.5.0", "0.5.1"], "ramon-sg/agent-skills": ["0.2.0"] } });
+
+  const r = repo.cli(["--yes", "--skip", "issue-flow,claude-cloud,skills"], { env: { FAKE_GUARD_ERROR: "claude-repo-guard: .claude/settings.json no es JSON válido" } });
+
+  assert.equal(r.status, 1);
+  assert.match(r.err, /claude-repo-guard no se instaló; su error está abajo\. Para reintentar a mano: 'npx github:ramon-sg\/claude-repo-guard#v0\.5\.1 apply'/);
+  assert.match(r.err, /settings\.json no es JSON válido/);
+  assert.doesNotMatch(r.err, /sandbox/);
+});
+
+test("when the guard cannot write, the hint about Claude's sandbox is added to its error", () => {
+  const repo = installedRepo({ guard: "0.5.0", tags: { "ramon-sg/claude-repo-guard": ["0.5.0", "0.5.1"], "ramon-sg/agent-skills": ["0.2.0"] } });
+
+  const r = repo.cli(["--yes", "--skip", "issue-flow,claude-cloud,skills"], { env: { FAKE_GUARD_ERROR: "claude-repo-guard: EPERM: operation not permitted, open '.claude/settings.json'" } });
+
+  assert.equal(r.status, 1);
+  assert.match(r.err, /no tuvo permiso para escribir en el repo\. Si corres agent-kitchen dentro de una sesión de Claude, su sandbox bloquea \.claude\/settings\.json; corre 'npx github:ramon-sg\/claude-repo-guard#v0\.5\.1 apply' desde tu terminal/);
+  assert.match(r.err, /EPERM: operation not permitted/);
+});

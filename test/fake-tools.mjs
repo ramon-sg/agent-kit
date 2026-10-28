@@ -4,7 +4,9 @@
 //  - issue-flow init writes its dev dependencies and .agents/flow.json; upgrade moves its
 //    own version; doctor --json prints FAKE_FLOW_DOCTOR.
 //  - claude-cloud init writes .claude/cloud.json at its version.
-//  - claude-repo-guard install writes its manifest at the tag's version; doctor --json prints
+//  - claude-repo-guard, like the real one, installs with apply from 0.5.0 (and on main) and with
+//    install before; the other name fails as the real one does. It writes its manifest at the
+//    tag's version, or prints FAKE_GUARD_ERROR on stderr and exits 1; doctor --json prints
 //    FAKE_GUARD_DOCTOR.
 //  - skills-manager add --candidates prints FAKE_CANDIDATES; init writes a manifest; check
 //    fails with FAKE_CHECK_FAIL; update takes one name, like the real one (which ignores the
@@ -63,7 +65,24 @@ if (spec.startsWith("@ramon-sg/issue-flow@")) {
   const version = spec.split("@").at(-1);
   writeJson(join(cwd, ".claude", "cloud.json"), { version: version === "1" ? "1.0.0" : version });
 } else if (spec.startsWith("github:ramon-sg/claude-repo-guard")) {
-  if (command === "install") writeJson(join(cwd, ".claude", "repo-guard.manifest.json"), { version: spec.includes("#v") ? spec.split("#v")[1] : "0.0.0" });
+  const version = spec.includes("#v") ? spec.split("#v")[1] : null;
+  const [major, minor] = (version ?? "9.9.9").split(".").map(Number);
+  const applies = major > 0 || minor >= 5;
+  if (command === "install" && applies) {
+    process.stderr.write('claude-repo-guard: "install" ahora se llama "apply". Hace lo mismo: instala, actualiza o aplica cambios.\n');
+    process.exit(1);
+  }
+  if (command === "apply" && !applies) {
+    process.stderr.write('claude-repo-guard: no conozco el comando "apply".\n');
+    process.exit(1);
+  }
+  if (command === "install" || command === "apply") {
+    if (process.env.FAKE_GUARD_ERROR) {
+      process.stderr.write(`${process.env.FAKE_GUARD_ERROR}\n`);
+      process.exit(1);
+    }
+    writeJson(join(cwd, ".claude", "repo-guard.manifest.json"), { version: version ?? "0.0.0" });
+  }
   if (command === "doctor") process.stdout.write(process.env.FAKE_GUARD_DOCTOR ?? "[]");
 } else if (spec.startsWith("@ramon-sg/skills-manager@")) {
   if (rest.includes("--candidates")) process.stdout.write(process.env.FAKE_CANDIDATES ?? "[]");

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { menuOptions, skillOptions } from "../dist/menu.js";
 import { keepOwn, skillsOf } from "../dist/pieces/skills.js";
 import { compareVersions } from "../dist/tools.js";
+import { guardCommand } from "../dist/pieces/guard.js";
 
 test("versions compare by number, not as text", () => {
   assert.ok(compareVersions("0.10.0", "0.9.1") > 0);
@@ -52,4 +53,11 @@ test("the skills menu groups by catalog and cuts long descriptions", () => {
   assert.deepEqual(Object.keys(groups), ["a", "b"]);
   assert.equal(groups.a[0].hint.length, 70);
   assert.equal(groups.b[0].hint, "corta");
+});
+
+test("the guard installs with apply from 0.5.0 and on main, with install before", () => {
+  assert.equal(guardCommand("0.4.1"), "install");
+  assert.equal(guardCommand("0.5.0"), "apply");
+  assert.equal(guardCommand("0.10.0"), "apply");
+  assert.equal(guardCommand(null), "apply");
 });
