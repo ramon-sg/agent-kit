@@ -7,6 +7,11 @@
  * macOS `weakerNetworkIsolation` lets `gh` work inside the sandbox (the guard's own default
  * is false, so false counts as missing; the step can be unticked). When the flow is
  * installed in the same run, the guard gets those options in that run too.
+ *
+ * Its command that installs or updates is `apply` since 0.5.0 and `install` before, so the
+ * command follows the version being run. If it fails, its own output is shown; the hint about
+ * Claude's sandbox is added only when that output is a permission error, which is how the
+ * sandbox's block on `.claude/settings.json` shows up.
  */
 import { type Check, type Context, FLOW_CONFIG, type PieceStatus, type Step } from "../piece.js";
 import { readJson, writeJson } from "../repo.js";
@@ -39,6 +44,36 @@ export const WEAKER_NETWORK = "weakerNetworkIsolation";
  */
 export function guardSpec(version: string | null): string {
   return version === null ? `github:${REPO}` : `github:${REPO}#v${version}`;
+}
+
+/** The first version whose install command is `apply`. */
+const APPLY_SINCE = "0.5.0";
+
+/** What a write blocked by a sandbox or by the file's permissions prints. */
+const PERMISSION_ERROR = /\b(EPERM|EACCES|EROFS)\b|operation not permitted|permission denied|read-only file system/i;
+
+/**
+ * The guard's command that installs or updates, at a version.
+ * @param version - The version, or null for the default branch.
+ * @returns `apply` from 0.5.0 on and on the default branch, `install` before.
+ * @example guardCommand("0.4.1") // "install"
+ */
+export function guardCommand(version: string | null): string {
+  return version === null || compareVersions(version, APPLY_SINCE) >= 0 ? "apply" : "install";
+}
+
+/**
+ * What to say when the guard did not install.
+ * @param version - The version it ran.
+ * @param output - What it printed.
+ * @returns One line: the command to run by hand, and the sandbox hint only if the output is a permission error.
+ * @example guardFailure("0.5.1", "Error: EPERM: operation not permitted") // "…sandbox…"
+ */
+export function guardFailure(version: string | null, output: string): string {
+  const command = `npx ${guardSpec(version)} ${guardCommand(version)}`;
+  if (PERMISSION_ERROR.test(output))
+    return `claude-repo-guard no se instaló: no tuvo permiso para escribir en el repo. Si corres agent-kitchen dentro de una sesión de Claude, su sandbox bloquea .claude/settings.json; corre '${command}' desde tu terminal.`;
+  return `claude-repo-guard no se instaló; su error está abajo. Para reintentar a mano: '${command}'.`;
 }
 
 /**
@@ -79,9 +114,9 @@ async function install(context: Context, version: string | null): Promise<boolea
   const { options, changes } = guardOptions(context.root, process.platform);
   if (changes.length > 0) writeJson(context.root, CONFIG, options);
   for (const change of changes) context.note(change);
-  const run = await runNpx(context.root, [guardSpec(version), "install", "--yes"]);
+  const run = await runNpx(context.root, [guardSpec(version), guardCommand(version), "--yes"]);
   if (run.ok) return true;
-  context.fail(`claude-repo-guard no se instaló; corre 'npx ${guardSpec(version)} install' desde tu terminal (dentro de una sesión de Claude su sandbox bloquea .claude/settings.json).`, run.output);
+  context.fail(guardFailure(version, run.output), run.output);
   return false;
 }
 
