@@ -1,13 +1,22 @@
 {
   "name": "agent-kitchen",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "One command to install, update and check a repo's agent tooling: the issue flow and its skills, the general skills, Claude cloud sessions and claude-repo-guard.",
   "license": "MIT",
   "type": "module",
-  "bin": { "agent-kitchen": "dist/cli.js" },
-  "files": ["dist"],
-  "engines": { "node": ">=20" },
-  "publishConfig": { "access": "public", "provenance": true },
+  "bin": {
+    "agent-kitchen": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ramon-sg/agent-kitchen.git"
@@ -17,6 +26,11 @@
     "test": "tsc && node --test test/*.test.mjs",
     "prepublishOnly": "npm test"
   },
-  "dependencies": { "@clack/prompts": "1.8.1" },
-  "devDependencies": { "@types/node": "^24.0.0", "typescript": "^5.9.3" }
+  "dependencies": {
+    "@clack/prompts": "1.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  }
 }
