@@ -60,6 +60,6 @@ test("doctor does not ask a flow that predates doctor --json, and says to update
   const r = repo.cli(["doctor"]);
 
   assert.equal(r.status, 0, r.out);
-  assert.match(r.out, /· issue-flow: 0\.1\.0 no tiene doctor --json: corre npx agent-kitchen/);
+  assert.match(r.out, /· issue-flow: 0\.1\.0 no tiene doctor --json: corre npx agent-kitchen apply para actualizarlo/);
   assert.ok(repo.calls().every((args) => !args[0].startsWith("@ramon-sg/issue-flow")));
 });

@@ -33,7 +33,7 @@ Referencia para un agente que trabaja en un repo preparado con `agent-kitchen`. 
 | `AGENTS.md` | `agent-kitchen` (pieza `agents-md`) y el usuario | Instrucciones que se cargan en cada sesión; mínimo. `agent-kitchen` agrega al final la regla de mirar la versión instalada de una biblioteca en `node_modules` antes de usarla |
 | `CLAUDE.md` | El usuario; `agent-kitchen` solo agrega `@AGENTS.md` | Si existe, Claude Code no lee `AGENTS.md` sin esa línea. `agent-kitchen` no lo crea |
 
-El sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`, `.claude/skills` ni `.agents/skills/` desde una sesión, tampoco con git. Por eso `agent-kitchen`, `skills-manager install|update` y un `git pull` que cambie esas rutas se corren desde la terminal del usuario.
+El sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`, `.claude/skills` ni `.agents/skills/` desde una sesión, tampoco con git. Por eso `agent-kitchen apply`, `skills-manager install|update` y un `git pull` que cambie esas rutas se corren desde la terminal del usuario.
 
 ## Versiones: quién fija qué
 
@@ -46,7 +46,7 @@ El sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`, `.cl
 | `claude-cloud` | `.claude/cloud.json` | Cambiar la versión fijada y commitear |
 | `claude-repo-guard` | `.claude/repo-guard.manifest.json` | `npx github:ramon-sg/claude-repo-guard#vX.Y.Z apply` |
 
-`npx agent-kitchen` hace todo lo anterior en orden; `npx agent-kitchen doctor` lo revisa sin cambiar nada y sale con 1 si algo falla.
+`npx agent-kitchen apply` hace todo lo anterior en orden; `npx agent-kitchen doctor` lo revisa sin cambiar nada y sale con 1 si algo falla.
 
 ## Dónde están las skills
 

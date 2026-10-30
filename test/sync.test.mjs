@@ -73,10 +73,10 @@ test("the repo's own skills are left out with --yes, and the rest are installed"
 test("without a terminal nor --yes it only shows the steps", () => {
   const repo = makeRepo();
 
-  const r = repo.cli([]);
+  const r = repo.cli(["apply"]);
 
   assert.equal(r.status, 0, r.err);
-  assert.match(r.out, /corre agent-kitchen en una terminal, o con --yes/);
+  assert.match(r.out, /corre agent-kitchen apply en una terminal, o con --yes/);
   assert.deepEqual(repo.calls(), []);
 });
 
@@ -210,7 +210,7 @@ test("it refuses to run in a worktree", () => {
   const r = repo.cli(["--yes"], { cwd: dir });
 
   assert.equal(r.status, 1);
-  assert.match(r.err, /corre agent-kitchen en la copia principal/);
+  assert.match(r.err, /corre agent-kitchen apply en la copia principal/);
   assert.deepEqual(repo.calls(), []);
 });
 

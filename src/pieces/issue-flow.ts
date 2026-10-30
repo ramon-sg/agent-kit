@@ -69,7 +69,7 @@ async function moveSkills(context: Context, version: string): Promise<boolean> {
     context.note(`skills del flujo en v${version}: ${names.join(", ")}`);
     return true;
   }
-  context.fail(`skills-manager no actualizó las skills del flujo; corre '${failed.command}' y luego agent-kitchen otra vez.`, failed.run.output);
+  context.fail(`skills-manager no actualizó las skills del flujo; corre '${failed.command}' y luego agent-kitchen apply otra vez.`, failed.run.output);
   return false;
 }
 
@@ -133,7 +133,7 @@ export async function issueFlowChecks(root: string): Promise<Check[]> {
   if (spec === null) return [{ name: NAME, status: "info", detail: "no instalado" }];
   const installed = flowVersion(root);
   if (installed === null) return [{ name: NAME, status: "info", detail: `package.json tiene ${spec}, no una versión exacta` }];
-  if (compareVersions(installed, JSON_DOCTOR) < 0) return [{ name: NAME, status: "info", detail: `${installed} no tiene doctor --json: corre npx agent-kitchen para actualizarlo` }];
+  if (compareVersions(installed, JSON_DOCTOR) < 0) return [{ name: NAME, status: "info", detail: `${installed} no tiene doctor --json: corre npx agent-kitchen apply para actualizarlo` }];
   const result = await captureNpx(root, [`${FLOW_PACKAGE}@${installed}`, "doctor", "--json"]);
   let found: unknown;
   try {
@@ -150,6 +150,6 @@ export async function issueFlowChecks(root: string): Promise<Check[]> {
     ? { name: `${NAME}: skills`, status: "info", detail: "ninguna instalada" }
     : off.length === 0
     ? { name: `${NAME}: skills`, status: "ok", detail: `${count} en v${installed}` }
-    : { name: `${NAME}: skills`, status: "fail", detail: `${off.join(", ")}; issue-flow está en ${installed}: corre npx agent-kitchen` };
+    : { name: `${NAME}: skills`, status: "fail", detail: `${off.join(", ")}; issue-flow está en ${installed}: corre npx agent-kitchen apply` };
   return [...own, skills];
 }
