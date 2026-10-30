@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: applied
 type: feature
 prs: [8]
 issue: 7
@@ -26,8 +26,8 @@ En macOS, Claude Code toma la guía de agentes de este repo como instrucciones (
 
 | # | Etapa | Estado | PR |
 |---|---|---|---|
-| 1 | La línea en AGENTS.md y su aviso en doctor | en curso | [#8](https://github.com/ramon-sg/agent-kitchen/pull/8) |
-| 2 | Las guías: nombre nuevo, la pieza y por qué AGENTS.md es mínimo | en curso | [#8](https://github.com/ramon-sg/agent-kitchen/pull/8) |
+| 1 | La línea en AGENTS.md y su aviso en doctor | implementada | [#8](https://github.com/ramon-sg/agent-kitchen/pull/8) |
+| 2 | Las guías: nombre nuevo, la pieza y por qué AGENTS.md es mínimo | implementada | [#8](https://github.com/ramon-sg/agent-kitchen/pull/8) |
 
 ## Decisiones propias
 
@@ -81,3 +81,4 @@ Comprobado el 2026-10-30 sobre `feat/7-installed-version-docs` en `371657c`, con
 - **Etapa 1:** los tests nuevos van en `test/agents-md.test.mjs`, no repartidos en `sync.test.mjs` y `doctor.test.mjs`: prueban una sola pieza. `RULE` vive en `test/helpers.mjs` como literal, para que `installedRepo` la use. Una mutación (`agentsMdStatus(root, false)`) hizo fallar el test del repo vacío; restaurado con `cp` y `cmp`. `npm test`: 45 pasan, 0 fallan.
 - **Auditoría (`code-audit`, veredicto `changes`: 2 MAYOR, 3 MENOR):** un `CLAUDE.md` enlazado a `AGENTS.md` ya no recibe `@AGENTS.md` (`realpathSync`); el paso respeta el fin de línea del archivo (CRLF) y solo recorta saltos finales; tests nuevos para el enlace, CRLF, archivos vacíos o sin salto final, la segunda corrida y la corrida que termina sin `package.json`. `npm test`: 48 pasan. Lo NO VERIFICABLE (cómo carga Claude Code un `AGENTS.md` que se importa a sí mismo) deja de importar: ya no se escribe.
 - **Etapa 2:** `docs/README.md` explica por qué `AGENTS.md` es mínimo en una sección propia, "AGENTS.md: una línea, no un manual". `README.md` también anota la pieza en el párrafo de `doctor`.
+- **Cierre:** mergeado en #8 (`97e3a8f`). CI en verde en Ubuntu y macOS con Node 20 y 24; `npm test`: 48 pasan, 0 fallan.
