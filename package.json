@@ -1,7 +1,7 @@
 {
   "name": "agent-kitchen",
   "version": "0.3.1",
-  "description": "One command to install, update and check a repo's agent tooling: the issue flow and its skills, the general skills, Claude cloud sessions and claude-repo-guard.",
+  "description": "One command to install, update and check a repo's agent tooling: the issue flow and its skills, the general skills, Claude cloud sessions, claude-repo-guard and the installed-versions rule in AGENTS.md.",
   "license": "MIT",
   "type": "module",
   "bin": {

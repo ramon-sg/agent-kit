@@ -1,6 +1,7 @@
 /**
  * @file `agent-kitchen [--yes] [--dry-run] [--verbose] [--skip <piece>,...]`: the one command.
- * It looks at each piece (the issue flow, claude-cloud, claude-repo-guard, the skills) with
+ * It looks at each piece (the issue flow, claude-cloud, claude-repo-guard, the skills, the
+ * rule in AGENTS.md) with
  * every lookup at once, shows what the repo has, and offers the steps that install what is
  * missing or update what is behind. In a terminal it asks first, all in one go: everything
  * suggested, or pick the steps and the skills; whether to replace the repo's own skills.
@@ -18,6 +19,7 @@ import { cloudStatus, NAME as CLOUD } from "../pieces/cloud.js";
 import { guardStatus, NAME as GUARD } from "../pieces/guard.js";
 import { issueFlowStatus, NAME as FLOW } from "../pieces/issue-flow.js";
 import { keepOwn, NAME as SKILLS, ownInPick, skillsStatus } from "../pieces/skills.js";
+import { agentsMdStatus, NAME as AGENTS_MD } from "../pieces/agents-md.js";
 import { mainCheckout, packageManager } from "../repo.js";
 import { download, failedOutput, setVerbose } from "../tools.js";
 
@@ -31,7 +33,7 @@ export interface SyncOptions {
 }
 
 /** Every piece, in the order its steps run. */
-const PIECES = [FLOW, CLOUD, GUARD, SKILLS];
+const PIECES = [FLOW, CLOUD, GUARD, SKILLS, AGENTS_MD];
 
 /** How a step's progress is shown: a spinner in a terminal, plain lines otherwise. */
 interface Progress {
@@ -42,15 +44,16 @@ interface Progress {
 /**
  * The names `--skip` takes.
  * @returns The pieces' names.
- * @example pieceNames() // ["issue-flow", "claude-cloud", "claude-repo-guard", "skills"]
+ * @example pieceNames() // ["issue-flow", "claude-cloud", "claude-repo-guard", "skills", "agents-md"]
  */
 export function pieceNames(): string[] {
   return [...PIECES];
 }
 
 /**
- * Each piece's status, with every lookup at once. The guard's step depends on whether the
- * flow is about to be installed, so it waits for the flow's status.
+ * Each piece's status, with every lookup at once. The guard's step and the rule in AGENTS.md
+ * depend on whether the flow is about to be installed (it writes package.json), so they wait
+ * for the flow's status.
  * @param root - The repo.
  * @param skip - The pieces left out.
  * @returns The statuses, in the pieces' order.
@@ -59,8 +62,10 @@ async function statusesOf(root: string, skip: string[]): Promise<PieceStatus[]> 
   const flow = skip.includes(FLOW) ? null : issueFlowStatus(root);
   const cloud = skip.includes(CLOUD) ? null : cloudStatus(root);
   const skills = skip.includes(SKILLS) ? null : skillsStatus(root, !skip.includes(FLOW));
-  const guard = skip.includes(GUARD) ? null : (flow ?? Promise.resolve(null)).then((status) => guardStatus(root, status !== null && !status.installed && status.steps.length > 0));
-  const all = await Promise.all([flow, cloud, guard, skills]);
+  const flowComing = (flow ?? Promise.resolve(null)).then((status) => status !== null && !status.installed && status.steps.length > 0);
+  const guard = skip.includes(GUARD) ? null : flowComing.then((coming) => guardStatus(root, coming));
+  const agentsMd = skip.includes(AGENTS_MD) ? null : flowComing.then((coming) => agentsMdStatus(root, coming));
+  const all = await Promise.all([flow, cloud, guard, skills, agentsMd]);
   return all.flatMap((status) => status ?? []);
 }
 

@@ -7,7 +7,7 @@ npx agent-kitchen          # muestra qué hay, qué falta y qué está atrasado,
 npx agent-kitchen doctor   # revisa que todo funcione, sin cambiar nada
 ```
 
-Qué hace cada herramienta y cada skill, y dónde están: [docs/README.md](docs/README.md) para personas y [docs/agents.md](docs/agents.md) para agentes.
+Qué hace cada herramienta y cada skill, y dónde están: [docs/README.md](docs/README.md) para personas y [docs/agent-guide.md](docs/agent-guide.md) para agentes.
 
 Al arrancar revisa si npm tiene una versión más nueva de sí mismo. Si la hay, corre esa con los mismos argumentos, así que `npx` nunca usa una copia vieja de su caché.
 
@@ -17,7 +17,7 @@ Al arrancar revisa si npm tiene una versión más nueva de sí mismo. Si la hay,
 - Pregunta una vez: **todo lo sugerido** (Enter), **elegir** los pasos y las skills, o **salir**. Todas las preguntas van antes de instalar; después corre solo.
 - Cada paso es una línea con ✓ o ✗. La salida de cada herramienta solo aparece si falla, o con `--verbose`.
 - Es rápido: las versiones se consultan todas a la vez y las herramientas se descargan mientras respondes.
-- Cada pieza la instala su propia herramienta. `agent-kitchen` solo sabe cuáles hay, en qué versión están y cómo se conectan entre sí.
+- Cada pieza la instala su propia herramienta. `agent-kitchen` solo sabe cuáles hay, en qué versión están y cómo se conectan entre sí. La excepción es una línea de `AGENTS.md`, que escribe él mismo.
 - Correrlo de nuevo no rompe nada: si todo está al día, lo dice y termina.
 
 ## Las piezas
@@ -28,6 +28,7 @@ Al arrancar revisa si npm tiene una versión más nueva de sí mismo. Si la hay,
 | `claude-cloud` | Sesiones en la nube ([`@ramon-sg/claude-cloud`](https://github.com/ramon-sg/claude-cloud)): herramientas, Docker y el clone completo | `.claude/cloud.json` | npm | `claude-cloud init` | Cambia la versión que fija `.claude/cloud.json` |
 | `claude-repo-guard` | Barandas ([`claude-repo-guard`](https://github.com/ramon-sg/claude-repo-guard)): modo auto con sandbox, escribe solo en su worktree | `.claude/repo-guard.manifest.json` | Tags `vX.Y.Z` de GitHub | `apply` en esa tag (`install` antes de 0.5.0) | `apply` en la tag nueva |
 | `skills` | Skills con [`skills-manager`](https://github.com/ramon-sg/skills-manager): las del flujo y las de [`agent-skills`](https://github.com/ramon-sg/agent-skills) (planes, auditoría de código y de tests) | `.agents/skills.lock.json` | Tags del catálogo | `skills-manager init --select` con las elegidas | `skills-manager update` |
+| `agents-md` | Una línea en `AGENTS.md` que le pide al agente mirar la versión instalada de una biblioteca antes de usarla. Si el repo tiene `CLAUDE.md`, le agrega `@AGENTS.md`, porque si no Claude Code no lee `AGENTS.md`. Solo en repos con `package.json` | `AGENTS.md` | — | La escribe `agent-kitchen` | — |
 
 Si npm o GitHub no responden, la pieza se muestra pero no se ofrece actualizarla. Si un paso falla, los demás siguen y el comando dice cómo reintentarlo.
 
@@ -54,7 +55,7 @@ npx agent-kitchen doctor                 # revisa cada pieza con su propio docto
 - **Corre en el checkout principal,** no en un worktree, y desde tu terminal. Dentro de una sesión de Claude, el sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`.
 - **Al terminar,** corre el `install` de tu gestor de paquetes, revisa el diff y haz commit.
 
-**`doctor`** corre el doctor de cada herramienta en la versión del repo: `issue-flow doctor --json`, `skills-manager check` y `claude-repo-guard doctor --json`. Además revisa que las skills del flujo estén en la tag de su CLI, que `.claude/cloud.json` fije una versión exacta y, en macOS, `weakerNetworkIsolation`. Lo que no está instalado o tiene una versión nueva solo se anota con `·`. Sale con 1 si algo falla (`✗`).
+**`doctor`** corre el doctor de cada herramienta en la versión del repo: `issue-flow doctor --json`, `skills-manager check` y `claude-repo-guard doctor --json`. Además revisa que las skills del flujo estén en la tag de su CLI, que `.claude/cloud.json` fije una versión exacta y, en macOS, `weakerNetworkIsolation`. En un repo con `package.json`, también la línea de `AGENTS.md` y, si hay `CLAUDE.md`, su `@AGENTS.md`. Lo que no está instalado o tiene una versión nueva solo se anota con `·`. Sale con 1 si algo falla (`✗`).
 
 ## Sumar una pieza
 

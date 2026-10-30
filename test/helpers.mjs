@@ -15,6 +15,10 @@ const GIT_ENV = { GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_N
 // The latest of everything on npm, unless a test says otherwise.
 export const NPM = { "@ramon-sg/issue-flow": "0.2.0", "@ramon-sg/claude-cloud": "1.1.0" };
 
+// The rule agent-kitchen writes into AGENTS.md (src/pieces/agents-md.ts), copied as a literal on
+// purpose: the line is a contract that other agents read, not a value to derive.
+export const RULE = "Antes de usar una biblioteca, mira su versión instalada en `node_modules/<biblioteca>/package.json` y lee sus tipos o su documentación ahí. Si no alcanza, busca la documentación de esa versión, no la última.";
+
 // What the catalogs offer (skills-manager --candidates), unless a test says otherwise.
 export const CANDIDATES = [
   { id: "catalog:ramon-sg/issue-flow/github-issues", name: "github-issues", catalog: "ramon-sg/issue-flow", description: "Crea issues cortas", skills: ["github-issues"], requires: [] },
@@ -85,11 +89,12 @@ export function makeRepo({ tags = { "ramon-sg/claude-repo-guard": ["0.1.0", "0.2
 }
 
 // A repo as agent-kitchen leaves it at the given versions: the flow, its skills and the general
-// ones, claude-cloud and claude-repo-guard (with the flow's options).
+// ones, claude-cloud, claude-repo-guard (with the flow's options) and the rule in AGENTS.md.
 export function installedRepo({ flow = "0.2.0", cloud = "1.1.0", guard = "0.2.0", general = "v0.2.0", tags } = {}) {
   const repo = makeRepo(tags === undefined ? {} : { tags });
   repo.write("package.json", { devDependencies: { "@ramon-sg/issue-flow": flow, "@ramon-sg/github-rest": "0.2.1", "@ramon-sg/skills-manager": "1.1.0" } });
   repo.write(".agents/flow.json", {});
+  repo.write("AGENTS.md", `${RULE}\n`);
   const flowSkill = { source: "catalog:ramon-sg/issue-flow", tag: `v${flow}` };
   repo.write(".agents/skills.json", { sources: [{ catalog: "ramon-sg/issue-flow", ref: `v${flow}`, skills: ["close-pr"] }, { catalog: "ramon-sg/agent-skills", skills: ["code-audit"] }] });
   repo.write(".agents/skills.lock.json", { lockVersion: 2, skills: { "close-pr": flowSkill, "pr-review-comments": flowSkill, "code-audit": { source: "catalog:ramon-sg/agent-skills", tag: general }, "test-audit": { source: "catalog:ramon-sg/agent-skills", tag: general } } });

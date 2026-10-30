@@ -2,10 +2,12 @@
  * @file `agent-kitchen doctor`: whether each piece the repo has works, with the doctor of each
  * tool at the repo's own version: the issue flow (and its skills at its tag),
  * `skills-manager check`, the version `.claude/cloud.json` pins, and claude-repo-guard. It
- * changes nothing. A piece the repo does not have, or a newer release, is only noted.
+ * changes nothing. A piece the repo does not have, or a newer release, is only noted, and so is
+ * a missing rule in AGENTS.md.
  */
 import type { Output } from "../output.js";
 import type { Check } from "../piece.js";
+import { agentsMdChecks } from "../pieces/agents-md.js";
 import { cloudChecks } from "../pieces/cloud.js";
 import { guardChecks } from "../pieces/guard.js";
 import { issueFlowChecks } from "../pieces/issue-flow.js";
@@ -25,7 +27,7 @@ const MARKS: Record<Check["status"], string> = { ok: "✓", fail: "✗", info: "
  */
 export async function doctor(cwd: string, out: Output): Promise<number> {
   const root = mainCheckout(cwd, "agent-kitchen doctor");
-  const checks = (await Promise.all([issueFlowChecks(root), skillsChecks(root), cloudChecks(root), guardChecks(root)])).flat();
+  const checks = (await Promise.all([issueFlowChecks(root), skillsChecks(root), cloudChecks(root), guardChecks(root), agentsMdChecks(root)])).flat();
   for (const check of checks) out.stdout(`${MARKS[check.status]} ${check.name}: ${check.detail}\n`);
   return checks.some((check) => check.status === "fail") ? 1 : 0;
 }
