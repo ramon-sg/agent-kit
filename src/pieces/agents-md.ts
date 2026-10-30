@@ -122,7 +122,7 @@ export async function agentsMdChecks(root: string): Promise<Check[]> {
   if (!existsSync(join(root, "package.json"))) return [];
   const lack = missing(root);
   const checks: Check[] = [];
-  if (lack.rule) checks.push({ name: NAME, status: "info", detail: "falta la regla de versiones en AGENTS.md; corre npx agent-kitchen" });
-  if (lack.import) checks.push({ name: NAME, status: "info", detail: "CLAUDE.md no importa AGENTS.md, así que Claude Code no lo lee; corre npx agent-kitchen" });
+  if (lack.rule) checks.push({ name: NAME, status: "info", detail: "falta la regla de versiones en AGENTS.md; corre npx agent-kitchen apply" });
+  if (lack.import) checks.push({ name: NAME, status: "info", detail: "CLAUDE.md no importa AGENTS.md, así que Claude Code no lo lee; corre npx agent-kitchen apply" });
   return checks.length > 0 ? checks : [{ name: NAME, status: "ok", detail: "regla de versiones en AGENTS.md" }];
 }

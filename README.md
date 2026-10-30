@@ -3,7 +3,7 @@
 Un solo comando para instalar, actualizar y revisar lo que un repo usa para trabajar con agentes: el flujo de issues con sus skills, las skills generales, las sesiones de Claude en la nube y las barandas de seguridad.
 
 ```sh
-npx agent-kitchen          # muestra qué hay, qué falta y qué está atrasado, y pregunta
+npx agent-kitchen apply    # muestra qué hay, qué falta y qué está atrasado, y pregunta
 npx agent-kitchen doctor   # revisa que todo funcione, sin cambiar nada
 ```
 
@@ -43,13 +43,15 @@ Si npm o GitHub no responden, la pieza se muestra pero no se ofrece actualizarla
 ## Uso
 
 ```sh
-npx agent-kitchen                        # pregunta, en una terminal (Enter: todo lo sugerido)
-npx agent-kitchen --dry-run              # solo muestra qué haría
-npx agent-kitchen --yes                  # hace lo sugerido sin preguntar
-npx agent-kitchen --verbose              # muestra la salida de cada herramienta
-npx agent-kitchen --skip claude-cloud    # deja fuera una pieza (o varias, con comas)
-npx agent-kitchen doctor                 # revisa cada pieza con su propio doctor
+npx agent-kitchen apply                        # pregunta, en una terminal (Enter: todo lo sugerido)
+npx agent-kitchen apply --dry-run              # solo muestra qué haría
+npx agent-kitchen apply --yes                  # hace lo sugerido sin preguntar
+npx agent-kitchen apply --verbose              # muestra la salida de cada herramienta
+npx agent-kitchen apply --skip claude-cloud    # deja fuera una pieza (o varias, con comas)
+npx agent-kitchen doctor                       # revisa cada pieza con su propio doctor
 ```
+
+- **Sin subcomando** (`npx agent-kitchen`) hace lo mismo que `apply`, por ahora, y avisa que se use `apply`. En una versión mayor pasará a solo mostrar el estado.
 
 - **Sin terminal y sin `--yes`** (por ejemplo, desde un agente), solo muestra lo que ofrecería.
 - **Corre en el checkout principal,** no en un worktree, y desde tu terminal. Dentro de una sesión de Claude, el sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`.

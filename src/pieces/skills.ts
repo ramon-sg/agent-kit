@@ -182,7 +182,7 @@ async function updateStep(root: string, catalog: string, ref: string | null): Pr
       if (ref !== null) pinCatalog(context.root, catalog, `v${latest}`);
       const failed = await updateSkills(context.root, behind.map((skill) => skill.name));
       if (failed === null) return true;
-      context.fail(`skills-manager no actualizó ${catalog}; corre '${failed.command}' y luego agent-kitchen otra vez.`, failed.run.output);
+      context.fail(`skills-manager no actualizó ${catalog}; corre '${failed.command}' y luego agent-kitchen apply otra vez.`, failed.run.output);
       return false;
     },
   };

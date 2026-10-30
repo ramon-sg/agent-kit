@@ -97,7 +97,7 @@ test("doctor notes a missing rule or import with ·, never ✗, and passes when 
   const ok = repo.cli(["doctor"]);
   const bare = makeRepo().cli(["doctor"]);
 
-  assert.match(missing.out, /· agents-md: falta la regla de versiones en AGENTS\.md; corre npx agent-kitchen/);
+  assert.match(missing.out, /· agents-md: falta la regla de versiones en AGENTS\.md; corre npx agent-kitchen apply/);
   assert.match(noImport.out, /· agents-md: CLAUDE\.md no importa AGENTS\.md/);
   assert.match(ok.out, /✓ agents-md: /);
   assert.doesNotMatch(`${missing.out}${noImport.out}`, /✗ agents-md/);

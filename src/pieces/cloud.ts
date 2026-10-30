@@ -93,6 +93,6 @@ export async function cloudChecks(root: string): Promise<Check[]> {
   const version = pinned(config);
   const latest = await npmLatest(PACKAGE);
   if (version === null) return [{ name: NAME, status: "fail", detail: `${CONFIG} no fija una versión exacta: pon en "version" la que se usa, como "${latest ?? "1.0.0"}"` }];
-  if (latest !== null && compareVersions(latest, version) > 0) return [{ name: NAME, status: "info", detail: `${version}, hay ${latest}: corre npx agent-kitchen` }];
+  if (latest !== null && compareVersions(latest, version) > 0) return [{ name: NAME, status: "info", detail: `${version}, hay ${latest}: corre npx agent-kitchen apply` }];
   return [{ name: NAME, status: "ok", detail: version }];
 }

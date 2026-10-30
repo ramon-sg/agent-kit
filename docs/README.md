@@ -4,7 +4,7 @@ Esta guía explica, en simple, las herramientas que `agent-kitchen` instala en u
 
 ## Resumen
 
-- **Un comando lo instala todo:** `npx agent-kitchen` muestra qué tiene el repo, qué falta y qué está atrasado, y lo deja al día.
+- **Un comando lo instala todo:** `npx agent-kitchen apply` muestra qué tiene el repo, qué falta y qué está atrasado, y lo deja al día.
 - **Cada issue tiene su rama, su carpeta y su PR:** `issue-flow` los crea al empezar y los borra cuando se mergea.
 - **Las skills le enseñan al agente cada paso:** crear una issue, empezarla, planificar, auditar, responder la revisión y mergear.
 - **Las barandas dejan trabajar al agente sin preguntar:** `claude-repo-guard` le permite escribir solo dentro de su carpeta.

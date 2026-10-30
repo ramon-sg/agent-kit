@@ -188,7 +188,7 @@ export async function guardChecks(root: string): Promise<Check[]> {
   if (installed === undefined) return [{ name: NAME, status: "info", detail: "no instalado (Claude se abre con tus propios permisos)" }];
   const checks: Check[] = [];
   if (process.platform === "darwin" && readJson(root, CONFIG)?.[WEAKER_NETWORK] !== true)
-    checks.push({ name: `${NAME}: ${WEAKER_NETWORK}`, status: "fail", detail: `no está activado en ${CONFIG}, así que gh falla en el sandbox de macOS: corre npx agent-kitchen` });
+    checks.push({ name: `${NAME}: ${WEAKER_NETWORK}`, status: "fail", detail: `no está activado en ${CONFIG}, así que gh falla en el sandbox de macOS: corre npx agent-kitchen apply` });
   const result = await captureNpx(root, [guardSpec(installed), "doctor", "--json"]);
   let found: unknown;
   try {

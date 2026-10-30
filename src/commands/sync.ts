@@ -1,5 +1,6 @@
 /**
- * @file `agent-kitchen [--yes] [--dry-run] [--verbose] [--skip <piece>,...]`: the one command.
+ * @file `agent-kitchen apply [--yes] [--dry-run] [--verbose] [--skip <piece>,...]`: the one command
+ * that changes the repo (and, for now, also the bare `agent-kitchen`).
  * It looks at each piece (the issue flow, claude-cloud, claude-repo-guard, the skills, the
  * rule in AGENTS.md) with
  * every lookup at once, shows what the repo has, and offers the steps that install what is
@@ -93,7 +94,7 @@ function keepOwnSkills(root: string, step: Step, out: Output): void {
   const own = ownInPick(root, step.skills);
   if (own.length === 0) return;
   Object.assign(step.skills, keepOwn(step.skills, own));
-  out.stdout(`Se dejan fuera las skills que el repo ya tiene como propias: ${own.join(", ")}. Para reemplazarlas, corre agent-kitchen en una terminal.\n`);
+  out.stdout(`Se dejan fuera las skills que el repo ya tiene como propias: ${own.join(", ")}. Para reemplazarlas, corre agent-kitchen apply en una terminal.\n`);
 }
 
 /**
@@ -137,7 +138,7 @@ async function chooseSteps(root: string, steps: Step[], options: SyncOptions, ou
     return suggested;
   }
   if (options.dryRun || !out.interactive) {
-    const hint = options.dryRun ? "" : " (para hacerlos, corre agent-kitchen en una terminal, o con --yes)";
+    const hint = options.dryRun ? "" : " (para hacerlos, corre agent-kitchen apply en una terminal, o con --yes)";
     out.stdout(`Pasos sugeridos${hint}:\n${steps.map((step) => `  [${step.checked ? "x" : " "}] ${step.label}\n`).join("")}`);
     return null;
   }
@@ -214,7 +215,7 @@ export async function sync(options: SyncOptions, out: Output): Promise<number> {
   const unknown = options.skip.find((name) => !pieceNames().includes(name));
   if (unknown !== undefined) throw new UsageError(`no existe la pieza ${unknown}; son ${pieceNames().join(", ")}.`);
   if (options.yes && options.dryRun) throw new UsageError("usa --yes o --dry-run, no los dos.");
-  const root = mainCheckout(options.cwd, "agent-kitchen");
+  const root = mainCheckout(options.cwd, "agent-kitchen apply");
   setVerbose(options.verbose);
   if (out.interactive) out.stdout("Revisando el repo y las últimas versiones…\n");
   const statuses = await statusesOf(root, options.skip);
