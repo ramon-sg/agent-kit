@@ -7,6 +7,8 @@ npx agent-kitchen          # muestra qué hay, qué falta y qué está atrasado,
 npx agent-kitchen doctor   # revisa que todo funcione, sin cambiar nada
 ```
 
+Qué hace cada herramienta y cada skill, y dónde están: [docs/README.md](docs/README.md) para personas y [docs/agents.md](docs/agents.md) para agentes.
+
 Al arrancar revisa si npm tiene una versión más nueva de sí mismo. Si la hay, corre esa con los mismos argumentos, así que `npx` nunca usa una copia vieja de su caché.
 
 ## En simple
