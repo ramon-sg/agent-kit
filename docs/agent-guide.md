@@ -30,6 +30,8 @@ Referencia para un agente que trabaja en un repo preparado con `agent-kitchen`. 
 | `.claude/repo-guard.auto-mode.json` | `claude-repo-guard apply` | Contexto del clasificador del modo auto, cargado por `claude:auto` |
 | `docs/development/claude-repo-guard.md` | `claude-repo-guard apply` | Qué protege el guard en este repo y cómo apagar cada parte |
 | `docs/plans/AAAA-MM-DD-<tema>.md` | skill `planning` | Planes; al cerrarse pasan a `applied/` o `abandoned/` |
+| `AGENTS.md` | `agent-kitchen` (pieza `agents-md`) y el usuario | Instrucciones que se cargan en cada sesión; mínimo. `agent-kitchen` agrega al final la regla de mirar la versión instalada de una biblioteca en `node_modules` antes de usarla |
+| `CLAUDE.md` | El usuario; `agent-kitchen` solo agrega `@AGENTS.md` | Si existe, Claude Code no lee `AGENTS.md` sin esa línea. `agent-kitchen` no lo crea |
 
 El sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`, `.claude/skills` ni `.agents/skills/` desde una sesión, tampoco con git. Por eso `agent-kitchen`, `skills-manager install|update` y un `git pull` que cambie esas rutas se corren desde la terminal del usuario.
 

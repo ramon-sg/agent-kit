@@ -1,6 +1,6 @@
 # Guía del sistema de agentes
 
-Esta guía explica, en simple, las herramientas que `agent-kitchen` instala en un repo, cada skill y cómo se usan juntas. El detalle para agentes (archivos, comandos, reglas) está en [agents.md](agents.md).
+Esta guía explica, en simple, las herramientas que `agent-kitchen` instala en un repo, cada skill y cómo se usan juntas. El detalle para agentes (archivos, comandos, reglas) está en [agent-guide.md](agent-guide.md).
 
 ## Resumen
 
@@ -9,6 +9,7 @@ Esta guía explica, en simple, las herramientas que `agent-kitchen` instala en u
 - **Las skills le enseñan al agente cada paso:** crear una issue, empezarla, planificar, auditar, responder la revisión y mergear.
 - **Las barandas dejan trabajar al agente sin preguntar:** `claude-repo-guard` le permite escribir solo dentro de su carpeta.
 - **Lo mismo funciona en la nube:** `claude-cloud` prepara las sesiones de Claude en claude.ai con las herramientas del repo.
+- **El agente usa la versión instalada de cada biblioteca:** una línea en `AGENTS.md` le pide mirarla antes de escribir código.
 
 ## Las herramientas
 
@@ -21,6 +22,14 @@ Esta guía explica, en simple, las herramientas que `agent-kitchen` instala en u
 | `claude-repo-guard` | Barandas: el agente no pide permiso y no sale de su carpeta | [ramon-sg/claude-repo-guard](https://github.com/ramon-sg/claude-repo-guard) |
 | `claude-cloud` | Prepara las sesiones de Claude en la nube | [ramon-sg/claude-cloud](https://github.com/ramon-sg/claude-cloud) |
 | `github-rest` | Habla con GitHub sin GraphQL, que la nube bloquea | [ramon-sg/github-rest](https://github.com/ramon-sg/github-rest) |
+
+## AGENTS.md: una línea, no un manual
+
+`AGENTS.md` se carga entero en cada sesión, se use o no. Por eso tiene solo lo que el agente necesita siempre; el detalle va en otros archivos, que el agente abre cuando le hacen falta.
+
+`agent-kitchen` le agrega una sola línea: antes de usar una biblioteca, mirar su versión instalada en `node_modules` y leer sus tipos ahí. En pruebas con Zod 3 y Zod 4, con esa línea el agente leyó los tipos antes de escribir; sin ella, escribió de memoria. Una tabla con todas las versiones habría costado una fila por dependencia en cada sesión, y quedaba vieja con cada cambio.
+
+Si el repo tiene `CLAUDE.md`, `agent-kitchen` le agrega `@AGENTS.md`: con `CLAUDE.md`, Claude Code no lee `AGENTS.md` por su cuenta.
 
 ## Las skills: qué hace cada una
 
