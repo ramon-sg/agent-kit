@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: applied
 type: feature
 prs: [16]
 issue: 14
@@ -26,7 +26,7 @@ Hasta arreglar ramon-sg/issue-flow#22, su upgrade baja 1.3.0 a 1.2.0. Nunca qued
 
 | # | Etapa | Estado | PR |
 |---|---|---|---|
-| 1 | Pieza `skills-manager`: paso en apply, aviso en doctor, spec desde `node_modules` | en curso | [#16](https://github.com/ramon-sg/agent-kitchen/pull/16) |
+| 1 | Pieza `skills-manager`: paso en apply, aviso en doctor, spec desde `node_modules` | implementada | [#16](https://github.com/ramon-sg/agent-kitchen/pull/16) |
 
 ## Decisiones propias
 
