@@ -3,7 +3,8 @@
 //  - npm view <pkg> version prints FAKE_NPM's entry for <pkg> (a JSON map), or fails.
 //  - issue-flow init writes its dev dependencies (keeping the ones the repo has) and
 //    .agents/flow.json; upgrade moves its own version; doctor --json prints
-//    FAKE_FLOW_DOCTOR.
+//    FAKE_FLOW_DOCTOR; labels sync --dry-run prints FAKE_LABELS, and labels sync fails
+//    with FAKE_LABELS_FAIL.
 //  - claude-cloud init writes .claude/cloud.json at its version.
 //  - claude-repo-guard, like the real one, installs with apply from 0.5.0 (and on main) and with
 //    install before; the other name fails as the real one does. It writes its manifest at the
@@ -63,6 +64,11 @@ if (spec.startsWith("@ramon-sg/issue-flow@")) {
     writeJson(pkgFile, pkg);
   }
   if (command === "doctor") process.stdout.write(process.env.FAKE_FLOW_DOCTOR ?? '[{"name":".agents/flow.json","ok":true,"detail":"valid"}]');
+  if (command === "labels" && rest.includes("--dry-run")) process.stdout.write(process.env.FAKE_LABELS ?? '{"labels":[]}');
+  else if (command === "labels" && process.env.FAKE_LABELS_FAIL) {
+    process.stderr.write("fake: gh auth login is needed\n");
+    process.exit(1);
+  }
 } else if (spec.startsWith("@ramon-sg/claude-cloud@") && command === "init") {
   const version = spec.split("@").at(-1);
   writeJson(join(cwd, ".claude", "cloud.json"), { version: version === "1" ? "1.0.0" : version });

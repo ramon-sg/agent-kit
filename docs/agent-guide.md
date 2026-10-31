@@ -41,6 +41,7 @@ El sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`, `.cl
 | Pieza | Dónde está su versión | Cómo se actualiza |
 |---|---|---|
 | `issue-flow` | `package.json` (versión exacta) | `npx @ramon-sg/issue-flow@<versión> upgrade`, y luego sus skills a la tag `v<versión>` |
+| Labels del flujo | GitHub; la lista, en `labels` de `.agents/flow.json` | `issue-flow labels sync` (desde 0.2.6) crea los que faltan; `agent-kitchen apply` lo ofrece y `doctor` los anota |
 | Skills del flujo | `ref` del catálogo `ramon-sg/issue-flow` en `.agents/skills.json` | Siempre en la misma tag que la CLI, porque la llaman |
 | Skills generales | El lock, una tag por skill | `skills-manager update <nombre>` |
 | `skills-manager` | La exacta de `package.json`; si no, la de `node_modules`; si no, el rango (salvo `workspace:`); si no, la última 1.x | `agent-kitchen apply` la sube al mínimo que necesita (1.2.0); más arriba, npm |
