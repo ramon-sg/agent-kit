@@ -17,13 +17,14 @@ Al arrancar revisa si npm tiene una versión más nueva de sí mismo. Si la hay,
 - Pregunta una vez: **todo lo sugerido** (Enter), **elegir** los pasos y las skills, o **salir**. Todas las preguntas van antes de instalar; después corre solo.
 - Cada paso es una línea con ✓ o ✗. La salida de cada herramienta solo aparece si falla, o con `--verbose`.
 - Es rápido: las versiones se consultan todas a la vez y las herramientas se descargan mientras respondes.
-- Cada pieza la instala su propia herramienta. `agent-kitchen` solo sabe cuáles hay, en qué versión están y cómo se conectan entre sí. La excepción es una línea de `AGENTS.md`, que escribe él mismo.
+- Cada pieza la instala su propia herramienta. `agent-kitchen` solo sabe cuáles hay, en qué versión están y cómo se conectan entre sí. Las excepciones son una línea de `AGENTS.md` y la versión de `skills-manager` en `package.json`, que escribe él mismo.
 - Correrlo de nuevo no rompe nada: si todo está al día, lo dice y termina.
 
 ## Las piezas
 
 | Pieza | Qué es | Versión del repo | Última | Instalar | Actualizar |
 |---|---|---|---|---|---|
+| `skills-manager` | La versión de [`@ramon-sg/skills-manager`](https://github.com/ramon-sg/skills-manager) que corre `agent-kitchen`: como mínimo 1.2.0. Si falta la agrega y si es menor la sube; nunca la baja. Un rango o `workspace:` no se toca, y avisa si la versión que corre queda bajo el mínimo. Solo en repos con `package.json` que usan skills | `package.json` | — | La agrega `agent-kitchen` | La sube `agent-kitchen` |
 | `issue-flow` | Flujo de issues ([`@ramon-sg/issue-flow`](https://github.com/ramon-sg/issue-flow)): rama, worktree y PR en draft por issue, y sus 5 skills | `package.json` | npm | `issue-flow init` | `issue-flow upgrade` en la versión nueva, y sus skills a la misma tag |
 | `claude-cloud` | Sesiones en la nube ([`@ramon-sg/claude-cloud`](https://github.com/ramon-sg/claude-cloud)): herramientas, Docker y el clone completo | `.claude/cloud.json` | npm | `claude-cloud init` | Cambia la versión que fija `.claude/cloud.json` |
 | `claude-repo-guard` | Barandas ([`claude-repo-guard`](https://github.com/ramon-sg/claude-repo-guard)): modo auto con sandbox, escribe solo en su worktree | `.claude/repo-guard.manifest.json` | Tags `vX.Y.Z` de GitHub | `apply` en esa tag (`install` antes de 0.5.0) | `apply` en la tag nueva |
@@ -57,7 +58,7 @@ npx agent-kitchen doctor                       # revisa cada pieza con su propio
 - **Corre en el checkout principal,** no en un worktree, y desde tu terminal. Dentro de una sesión de Claude, el sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`.
 - **Al terminar,** corre el `install` de tu gestor de paquetes, revisa el diff y haz commit.
 
-**`doctor`** corre el doctor de cada herramienta en la versión del repo: `issue-flow doctor --json`, `skills-manager check` y `claude-repo-guard doctor --json`. Además revisa que las skills del flujo estén en la tag de su CLI, que `.claude/cloud.json` fije una versión exacta y, en macOS, `weakerNetworkIsolation`. En un repo con `package.json`, también la línea de `AGENTS.md` y, si hay `CLAUDE.md`, su `@AGENTS.md`. Lo que no está instalado o tiene una versión nueva solo se anota con `·`. Sale con 1 si algo falla (`✗`).
+**`doctor`** corre el doctor de cada herramienta en la versión del repo: `issue-flow doctor --json`, `skills-manager check` y `claude-repo-guard doctor --json`. Además revisa que `skills-manager` esté al menos en 1.2.0, que las skills del flujo estén en la tag de su CLI, que `.claude/cloud.json` fije una versión exacta y, en macOS, `weakerNetworkIsolation`. En un repo con `package.json`, también la línea de `AGENTS.md` y, si hay `CLAUDE.md`, su `@AGENTS.md`. Lo que no está instalado o tiene una versión nueva solo se anota con `·`. Sale con 1 si algo falla (`✗`).
 
 ## Sumar una pieza
 

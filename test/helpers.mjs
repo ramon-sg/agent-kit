@@ -92,7 +92,7 @@ export function makeRepo({ tags = { "ramon-sg/claude-repo-guard": ["0.1.0", "0.2
 // ones, claude-cloud, claude-repo-guard (with the flow's options) and the rule in AGENTS.md.
 export function installedRepo({ flow = "0.2.0", cloud = "1.1.0", guard = "0.2.0", general = "v0.2.0", tags } = {}) {
   const repo = makeRepo(tags === undefined ? {} : { tags });
-  repo.write("package.json", { devDependencies: { "@ramon-sg/issue-flow": flow, "@ramon-sg/github-rest": "0.2.1", "@ramon-sg/skills-manager": "1.1.0" } });
+  repo.write("package.json", { devDependencies: { "@ramon-sg/issue-flow": flow, "@ramon-sg/github-rest": "0.2.1", "@ramon-sg/skills-manager": "1.2.0" } });
   repo.write(".agents/flow.json", {});
   repo.write("AGENTS.md", `${RULE}\n`);
   const flowSkill = { source: "catalog:ramon-sg/issue-flow", tag: `v${flow}` };

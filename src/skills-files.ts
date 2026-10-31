@@ -1,15 +1,15 @@
 /**
  * @file What agent-kitchen reads of the files of `skills-manager`: which skills of a catalog
  * the lock has and at which tag (the lock is where the manifest's `paths.lock` says), the
- * catalog's source in the manifest, which `skills-manager` to run (the one the repo pins,
- * or the latest 1.x), the repo's own skills (folders the lock does not know), and updating
- * skills one by one, because `skills-manager update` takes a single name.
+ * catalog's source in the manifest, which `skills-manager` to run (the one the repo pins or
+ * has installed, or the latest 1.x), the repo's own skills (folders the lock does not know),
+ * and updating skills one by one, because `skills-manager update` takes a single name.
  */
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { dependencyVersion, isObject, readJson, writeJson } from "./repo.js";
+import { dependencyVersion, installedVersion, isObject, readJson, writeJson } from "./repo.js";
 import { SKILLS_LOCK, SKILLS_MANAGER, SKILLS_MANIFEST } from "./piece.js";
-import { runNpx, type ToolRun } from "./tools.js";
+import { isRelease, runNpx, type ToolRun } from "./tools.js";
 
 /** Where `skills-manager` puts the skills when the manifest does not say. */
 const SKILLS_DIR = ".agents/skills";
@@ -118,12 +118,17 @@ export function pinCatalog(root: string, catalog: string, tag: string): boolean 
 }
 
 /**
- * The `skills-manager` to run: the version the repo pins in package.json, so the lock is
- * written by the same version every time, or the latest 1.x.
+ * The `skills-manager` to run, so the lock is written by the same version every time: the
+ * exact version package.json pins (the one its install leaves, even before it runs), else
+ * the one in node_modules, else the range package.json has (npx cannot take `workspace:`),
+ * else the latest 1.x.
  * @param root - The repo.
  * @returns The npx spec.
- * @example skillsManagerSpec(root) // "@ramon-sg/skills-manager@1.1.0"
+ * @example skillsManagerSpec(root) // "@ramon-sg/skills-manager@1.2.0"
  */
 export function skillsManagerSpec(root: string): string {
-  return `${SKILLS_MANAGER}@${dependencyVersion(readJson(root, "package.json"), SKILLS_MANAGER) ?? "1"}`;
+  const pinned = dependencyVersion(readJson(root, "package.json"), SKILLS_MANAGER);
+  if (pinned !== null && isRelease(pinned)) return `${SKILLS_MANAGER}@${pinned}`;
+  const range = pinned === null || pinned.startsWith("workspace:") ? null : pinned;
+  return `${SKILLS_MANAGER}@${installedVersion(root, SKILLS_MANAGER) ?? range ?? "1"}`;
 }

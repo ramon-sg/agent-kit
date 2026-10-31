@@ -1,13 +1,14 @@
 /**
  * @file `agent-kitchen apply [--yes] [--dry-run] [--verbose] [--skip <piece>,...]`: the one command
  * that changes the repo (and, for now, also the bare `agent-kitchen`).
- * It looks at each piece (the issue flow, claude-cloud, claude-repo-guard, the skills, the
- * rule in AGENTS.md) with
+ * It looks at each piece (the version of skills-manager, the issue flow, claude-cloud,
+ * claude-repo-guard, the skills, the rule in AGENTS.md) with
  * every lookup at once, shows what the repo has, and offers the steps that install what is
  * missing or update what is behind. In a terminal it asks first, all in one go: everything
  * suggested, or pick the steps and the skills; whether to replace the repo's own skills.
- * While the person answers, the tools download. Then the steps run in order (the flow
- * first, the skills last, since they follow the flow's version), one line each, with the
+ * While the person answers, the tools download. Then the steps run in order (skills-manager
+ * first, since the flow moves its skills with it; the skills last, since they follow the
+ * flow's version), one line each, with the
  * tools' output only when one fails; one that fails does not stop the rest. With `--yes`
  * it does what is suggested without asking (and keeps the repo's own skills); without a
  * terminal it only shows the steps.
@@ -21,6 +22,7 @@ import { guardStatus, NAME as GUARD } from "../pieces/guard.js";
 import { issueFlowStatus, NAME as FLOW } from "../pieces/issue-flow.js";
 import { keepOwn, NAME as SKILLS, ownInPick, skillsStatus } from "../pieces/skills.js";
 import { agentsMdStatus, NAME as AGENTS_MD } from "../pieces/agents-md.js";
+import { NAME as SKILLS_MANAGER, skillsManagerStatus } from "../pieces/skills-manager.js";
 import { mainCheckout, packageManager } from "../repo.js";
 import { download, failedOutput, setVerbose } from "../tools.js";
 
@@ -34,7 +36,7 @@ export interface SyncOptions {
 }
 
 /** Every piece, in the order its steps run. */
-const PIECES = [FLOW, CLOUD, GUARD, SKILLS, AGENTS_MD];
+const PIECES = [SKILLS_MANAGER, FLOW, CLOUD, GUARD, SKILLS, AGENTS_MD];
 
 /** How a step's progress is shown: a spinner in a terminal, plain lines otherwise. */
 interface Progress {
@@ -45,7 +47,7 @@ interface Progress {
 /**
  * The names `--skip` takes.
  * @returns The pieces' names.
- * @example pieceNames() // ["issue-flow", "claude-cloud", "claude-repo-guard", "skills", "agents-md"]
+ * @example pieceNames() // ["skills-manager", "issue-flow", "claude-cloud", "claude-repo-guard", "skills", "agents-md"]
  */
 export function pieceNames(): string[] {
   return [...PIECES];
@@ -60,13 +62,14 @@ export function pieceNames(): string[] {
  * @returns The statuses, in the pieces' order.
  */
 async function statusesOf(root: string, skip: string[]): Promise<PieceStatus[]> {
+  const skillsManager = skip.includes(SKILLS_MANAGER) ? null : skillsManagerStatus(root, !skip.includes(SKILLS));
   const flow = skip.includes(FLOW) ? null : issueFlowStatus(root);
   const cloud = skip.includes(CLOUD) ? null : cloudStatus(root);
   const skills = skip.includes(SKILLS) ? null : skillsStatus(root, !skip.includes(FLOW));
   const flowComing = (flow ?? Promise.resolve(null)).then((status) => status !== null && !status.installed && status.steps.length > 0);
   const guard = skip.includes(GUARD) ? null : flowComing.then((coming) => guardStatus(root, coming));
   const agentsMd = skip.includes(AGENTS_MD) ? null : flowComing.then((coming) => agentsMdStatus(root, coming));
-  const all = await Promise.all([flow, cloud, guard, skills, agentsMd]);
+  const all = await Promise.all([skillsManager, flow, cloud, guard, skills, agentsMd]);
   return all.flatMap((status) => status ?? []);
 }
 

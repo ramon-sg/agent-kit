@@ -19,6 +19,7 @@ Referencia para un agente que trabaja en un repo preparado con `agent-kitchen`. 
 |---|---|---|
 | `package.json` | `issue-flow init` | `@ramon-sg/issue-flow`, `@ramon-sg/github-rest` y `@ramon-sg/skills-manager` como devDependencies con versión exacta; scripts `issue:start`, `worktree:prune`, `pr:worktree` |
 | `package.json` | `claude-repo-guard apply` | Scripts `claude:auto` y `claude:free` |
+| `package.json` | `agent-kitchen` (pieza `skills-manager`) | Sube `@ramon-sg/skills-manager` a 1.2.0 si es una versión exacta menor, o lo agrega si falta. Nunca lo baja; un rango no se toca |
 | `.agents/flow.json` | `issue-flow init`, editable | Config del flujo: `baseBranch`, `branch.template`, `worktrees.setup/teardown/ports/dockerProjects`, textos de `start.*`, `plans.dirs`. Esquema: [issue-flow/schema.json](https://github.com/ramon-sg/issue-flow/blob/main/schema.json) |
 | `.agents/skills.json` | `skills-manager` | Manifest: qué skills se quieren y de dónde (`catalog`, `plugin`, `repo`, `local`), con el `ref` de cada catálogo |
 | `.agents/skills.lock.json` | `skills-manager` | Lock: tag, commit, hash y archivos editables de cada skill. No se edita a mano |
@@ -42,7 +43,7 @@ El sandbox de `claude-repo-guard` no deja escribir `.claude/settings.json`, `.cl
 | `issue-flow` | `package.json` (versión exacta) | `npx @ramon-sg/issue-flow@<versión> upgrade`, y luego sus skills a la tag `v<versión>` |
 | Skills del flujo | `ref` del catálogo `ramon-sg/issue-flow` en `.agents/skills.json` | Siempre en la misma tag que la CLI, porque la llaman |
 | Skills generales | El lock, una tag por skill | `skills-manager update <nombre>` |
-| `skills-manager` | `package.json`, o la última 1.x | npm |
+| `skills-manager` | La exacta de `package.json`; si no, la de `node_modules`; si no, el rango (salvo `workspace:`); si no, la última 1.x | `agent-kitchen apply` la sube al mínimo que necesita (1.2.0); más arriba, npm |
 | `claude-cloud` | `.claude/cloud.json` | Cambiar la versión fijada y commitear |
 | `claude-repo-guard` | `.claude/repo-guard.manifest.json` | `npx github:ramon-sg/claude-repo-guard#vX.Y.Z apply` |
 

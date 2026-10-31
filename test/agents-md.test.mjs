@@ -67,7 +67,7 @@ test("--skip agents-md leaves it out, and an unknown piece is still a usage erro
   assert.equal(r.status, 0, r.err);
   assert.equal(repo.exists("AGENTS.md"), false);
   assert.equal(unknown.status, 2);
-  assert.match(unknown.err, /no existe la pieza docker; son issue-flow, claude-cloud, claude-repo-guard, skills, agents-md/);
+  assert.match(unknown.err, /no existe la pieza docker; son skills-manager, issue-flow, claude-cloud, claude-repo-guard, skills, agents-md/);
 });
 
 test("with the rule and the import there is nothing to do; without package.json the piece is not shown", () => {
