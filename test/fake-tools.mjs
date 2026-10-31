@@ -1,8 +1,9 @@
 // Fake npx and npm for the tests: they log each call (program, arguments, folder) to
 // FAKE_LOG and do the little of each tool that agent-kitchen reads back afterwards.
 //  - npm view <pkg> version prints FAKE_NPM's entry for <pkg> (a JSON map), or fails.
-//  - issue-flow init writes its dev dependencies and .agents/flow.json; upgrade moves its
-//    own version; doctor --json prints FAKE_FLOW_DOCTOR.
+//  - issue-flow init writes its dev dependencies (keeping the ones the repo has) and
+//    .agents/flow.json; upgrade moves its own version; doctor --json prints
+//    FAKE_FLOW_DOCTOR.
 //  - claude-cloud init writes .claude/cloud.json at its version.
 //  - claude-repo-guard, like the real one, installs with apply from 0.5.0 (and on main) and with
 //    install before; the other name fails as the real one does. It writes its manifest at the
@@ -52,7 +53,8 @@ if (spec.startsWith("@ramon-sg/issue-flow@")) {
   const pkgFile = join(cwd, "package.json");
   const pkg = readJson(pkgFile) ?? {};
   if (command === "init") {
-    pkg.devDependencies = { ...pkg.devDependencies, "@ramon-sg/issue-flow": version, "@ramon-sg/github-rest": "0.2.1", "@ramon-sg/skills-manager": "1.1.0" };
+    // Like the real one, it keeps the versions the repo already has of its companions.
+    pkg.devDependencies = { "@ramon-sg/github-rest": "0.2.1", "@ramon-sg/skills-manager": "1.2.0", ...pkg.devDependencies, "@ramon-sg/issue-flow": version };
     writeJson(pkgFile, pkg);
     if (!existsSync(join(cwd, ".agents", "flow.json"))) writeJson(join(cwd, ".agents", "flow.json"), {});
   }

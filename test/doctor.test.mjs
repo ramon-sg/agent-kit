@@ -15,7 +15,7 @@ test("doctor passes on a repo with every piece, asking each tool at the repo's v
   assert.match(r.out, /✓ issue-flow: skills: 2 en v0\.2\.0/);
   assert.deepEqual(repo.calls().map((args) => args.join(" ")).sort(), [
     "@ramon-sg/issue-flow@0.2.0 doctor --json",
-    "@ramon-sg/skills-manager@1.1.0 check",
+    "@ramon-sg/skills-manager@1.2.0 check",
     "github:ramon-sg/claude-repo-guard#v0.2.0 doctor --json",
   ]);
 });

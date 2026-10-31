@@ -116,3 +116,51 @@ export function packageManager(root: string): string {
   if (field !== undefined && field !== "") return field;
   return LOCKFILES.find(([file]) => existsSync(join(root, file)))?.[1] ?? "npm";
 }
+
+/**
+ * The version of a package installed in the repo's `node_modules`.
+ * @param root - The repo.
+ * @param name - The package.
+ * @returns Its version, or null if it is not installed.
+ * @example installedVersion(root, "@ramon-sg/skills-manager") // "1.3.0"
+ */
+export function installedVersion(root: string, name: string): string | null {
+  const file = join(root, "node_modules", name, "package.json");
+  if (!existsSync(file)) return null;
+  try {
+    const pkg: unknown = JSON.parse(readFileSync(file, "utf8"));
+    return isObject(pkg) && typeof pkg.version === "string" ? pkg.version : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sets the version of a dependency in package.json, changing nothing else: the file keeps
+ * its indentation, line endings and key order. It changes the entry `dependencyVersion`
+ * reads (`devDependencies` first, then `dependencies`); a new one goes into
+ * `devDependencies`, in alphabetical order, as npm adds it.
+ * @param root - The repo.
+ * @param name - The package.
+ * @param version - The version.
+ * @throws KitError if package.json is missing or not a JSON object.
+ * @example setDependency(root, "@ramon-sg/skills-manager", "1.2.0")
+ */
+export function setDependency(root: string, name: string, version: string): void {
+  const pkg = readJson(root, "package.json");
+  if (pkg === null) throw new KitError("no hay package.json.");
+  const text = readFileSync(join(root, "package.json"), "utf8");
+  const indent = /^([ \t]+)"/m.exec(text)?.[1] ?? "  ";
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const [deps, dev] = [pkg.dependencies, pkg.devDependencies];
+  if (isObject(dev) && typeof dev[name] === "string") dev[name] = version;
+  else if (isObject(deps) && typeof deps[name] === "string") deps[name] = version;
+  else {
+    const entries = Object.entries(isObject(dev) ? dev : {});
+    const at = entries.findIndex(([key]) => key > name);
+    entries.splice(at === -1 ? entries.length : at, 0, [name, version]);
+    pkg.devDependencies = Object.fromEntries(entries);
+  }
+  const json = JSON.stringify(pkg, null, indent).replace(/\n/g, eol);
+  writeFileSync(join(root, "package.json"), /\r?\n$/.test(text) || text === "" ? `${json}${eol}` : json);
+}
